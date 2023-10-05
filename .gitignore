@@ -1,0 +1,10 @@
+/venv
+/.vscode
+/backup/*
+/channels/*
+/output/*
+/data/*
+/temp/*
+.env
+*__pycache__
+*.ipynb_checkpoints
