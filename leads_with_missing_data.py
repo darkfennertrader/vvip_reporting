@@ -190,7 +190,7 @@ class MissingDataLeads:
     def _brevo_data_pre_processing(self, data: Any):
         # print("BREVO PREPROCESSING")
         # pprint(data, indent=2)
-        # pprint(data["contacts"])
+        pprint(data["contacts"])
         customer_list = []
         for elem in data["contacts"]:
             elem["attributes"]["Email"] = elem["email"]
@@ -277,6 +277,8 @@ class MissingDataLeads:
         return response["AuthenticationResult"]["IdToken"]
 
     def _get_vvip_data(self, id_token):
+        print("\nVirtualVIP backoffice data")
+        print("*" * 30)
         resp = requests.get(
             url=self.url + self.get_url,  # type: ignore
             headers={
@@ -287,8 +289,6 @@ class MissingDataLeads:
         # pprint(resp.json(), indent=2)
         data = pd.DataFrame.from_dict(resp.json()["Items"])
         data.set_index("Customer_id", inplace=True)
-        print("\nRAW DATA")
-        print("*" * 30)
 
         data = data[
             [
