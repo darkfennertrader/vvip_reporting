@@ -26,8 +26,8 @@ OVERALL_OUTPUT = (
 class MissingDataLeads:
     mktg_actions = {
         "Business_Sales": "Sales",
-        "Control": "Advertising",
-        "Online": "Promo + Advertising",
+        "Control": "Sales",  # Advertising
+        "Online": "Sales",  # Promo + Advertising
         "Test": "",
     }
 
