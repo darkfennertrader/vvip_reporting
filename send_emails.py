@@ -65,7 +65,7 @@ def send_email_to_recipients():
     # print(sales_file)
     # print(sales_path)
     recipients = [TO_ME, TO_SALES, TO_TELEMKTG]
-    # recipients = [TO_ME]
+    # recipients = [TO_ME]  # for testing
 
     content = """
         DOMANDE DA COMPLETARE per i clienti con dati parziali:
@@ -104,7 +104,7 @@ def send_email_to_recipients():
     others_path = OUTPUT + "_" + str(datetime.now().date()) + ".xlsx"
     others_file = "mktg_campaigns" + "_" + str(datetime.now().date()) + ".xlsx"
     recipients = [TO_ME, TO_JACOPO]
-    # recipients = [TO_ME]
+    # recipients = [TO_ME] # for testing
 
     content = """
         LEGENDA:

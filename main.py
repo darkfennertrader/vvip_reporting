@@ -1,98 +1,61 @@
 import os
-from datetime import datetime
-from pprint import pprint
 import json
-import numpy as np
+from typing import Any
+from datetime import datetime
+import collections
+from pprint import pprint
 import pandas as pd
-import boto3
-import requests
-from dotenv import load_dotenv
+import numpy as np
 from sib_api_v3_sdk.rest import ApiException
-from leads_with_missing_data import MissingDataLeads
-from randomized_control_trial import rct
+import requests
+import boto3
+
+from dotenv import load_dotenv
 from send_emails import send_email_to_recipients
-
-
-pd.set_option("display.max_rows", None)
-# pd.set_option("display.max_columns", None)
-# pd.reset_option("display.max_columns")
-# pd.reset_option("display.max_colwidth")Untitled
-# pd.set_option("display.max_columns", 10)
-# pd.set_option("display.max_colwidth", 1000)
-
-
-# pd.options.display.width = 0
-# pd.set_option("display.width", 500)
 
 
 load_dotenv()
 
-print(boto3.__version__)
 
-client_id = os.getenv("prod_client_id")
-username = os.getenv("username")
-password = os.getenv("password")
-url = os.getenv("prod_url")
-get_url = os.getenv("get_url")
-post_url = os.getenv("post_url")
-agency_filepath = os.getenv("agency_filepath")
-report_filepath = os.getenv("report_filepath")
-itera_cust = os.getenv("itera_customers")
-brevo_api = os.getenv("brevo_api_key")
-brevo_update_url = os.getenv("brevo_update_contacts_url")
-active_url = os.getenv("active_url")
-
-if isinstance(url, str):
-    pass
-else:
-    raise ValueError("returned none value")
-
-if isinstance(get_url, str):
-    pass
-else:
-    raise ValueError("returned none value")
-
-if isinstance(post_url, str):
-    pass
-else:
-    raise ValueError("returned none value")
-
-if isinstance(agency_filepath, str):
-    pass
-else:
-    raise ValueError("returned none value")
-
-
-class VVIPReporting:
-
-    """Class that generates VVIP reporting"""
-
+class DataLeads:
     mktg_actions = {
         "Business_Sales": "Sales",
         "Control": "Sales",  # Advertising
-        "Online": "Sales",  # "Promo + Advertising"
+        "Online": "Sales",  # Promo + Advertising
         "Test": "",
     }
 
-    def __init__(self, url_address: str, get: str, post: str) -> None:
-        self.client_id = client_id
-        self.username = username
-        self.password = password
-        self.url = url_address
-        self.get_url = get
-        self.post_url = post
-        id_token = self._authenticate()
-        # print(id_token)
-        raw_data = self._get_data(id_token)
-        raw_data = self._get_raw_data(raw_data)
-        agency_data, data = self._pre_processing(raw_data, agency_filepath)
-        rep_data = self._reporting(agency_data, data)
-        self._update_itera_campaign(rep_data)
-        self._update_neting_campaign(rep_data)
-        report = self._output_reports(rep_data)
-        self._save_reports(report)
+    def __init__(self) -> None:
+        self.url = os.getenv("prod_url")
+        self.get_url = os.getenv("get_url")
+        self.post_url = os.getenv("post_url")
+        self.client_id = os.getenv("prod_client_id")
+        self.username = os.getenv("username")
+        self.password = os.getenv("password")
+        self.url = os.getenv("prod_url")
+        self.get_url = os.getenv("get_url")
+
+        #########   ITERA data   #############
+        raw_data = self._get_leads_from_active()
+        itera_data = self._active_data_pre_processing(raw_data)
+
+        #########   NETING data   #############
+        neting_data = self._get_leads_from_brevo()
+
+        overall = self._overall_customers(itera_data, neting_data)
+        #########   VirtualVIP data   ########
+        final_dataset = self._get_vvip_reporting(overall)
+
+        # #########   UPDATE Campaigns   ########
+        self._update_neting(final_dataset)
+        self._update_itera(final_dataset)
+
+        #########   Generate Reporting   ########
+        report = self._output_reports(final_dataset)
 
     def _authenticate(self) -> str:
+        print("\nVirtualVIP Backoffice data")
+        print("*" * 30)
         client = boto3.client("cognito-idp", region_name="eu-west-1")
 
         # Initiating the Authentication,
@@ -107,54 +70,18 @@ class VVIPReporting:
 
         return response["AuthenticationResult"]["IdToken"]
 
-    def _get_data(self, id_token: str) -> pd.DataFrame:
+    def _get_vvip_data(self, id_token):
         resp = requests.get(
-            url=self.url + self.get_url,
+            url=self.url + self.get_url,  # type: ignore
             headers={
                 "Authorization": f"Bearer {id_token}",
             },
             timeout=30,
         )
         # pprint(resp.json(), indent=2)
-        return pd.DataFrame.from_dict(resp.json()["Items"])
-
-    def _get_raw_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame.from_dict(resp.json()["Items"])
         data.set_index("Customer_id", inplace=True)
-        print("\nRAW DATA")
-        print("*" * 20)
-        print(data.head())
-        print(data.shape)
-        return data
 
-    def _pre_processing(
-        self, data: pd.DataFrame, agency_path: str | None
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        #### select fields from agency_data "
-        if not agency_path:
-            raise ValueError("env variable 'agency_path' is missing")
-
-        agency_data = pd.read_csv(agency_path, index_col=0)
-        agency_data.set_index("Email", inplace=True)
-        # agency_data.index = agency_data.index.map(str.lower)
-        agency_data.sort_index(inplace=True)
-
-        if agency_data.index.has_duplicates:
-            print("WARNING DUPLICATED RECORDS IN OUTPUT.CSV")
-            print(agency_data.index)
-            # is_duplicate = agency_data.index.duplicated(keep="first")
-            # agency_data = agency_data[~is_duplicate]
-            # print(agency_data)
-            # print("." * 80)
-            raise ValueError("Agency data contain duplicated emails !!!")
-        else:
-            print(agency_data)
-            agency_data = agency_data[["Agency", "RCT_group"]].copy()
-            print("\n\nPRE-PROCESSED AGENCY_DATA")
-            print("*" * 30)
-            print(agency_data.head(10))
-            print(agency_data.shape)
-
-        print()
         data = data[
             [
                 "Subscription_date",
@@ -167,14 +94,6 @@ class VVIPReporting:
             ]
         ].copy()
 
-        # rename column
-        data.rename(columns={"Username": "Email"}, inplace=True)
-
-        # filters out non Companies ("none" values)
-        data = data[data["Company"] != "none"]
-        # filter "Employee" value from "Customer_flag"
-        data = data[data["Customer_flag"] != "Employee"]
-
         # converting from isoformat to datetime
         iso_lists = ["Subscription_date", "Expiration_date", "Renewal_date"]
         for date_col in iso_lists:
@@ -182,40 +101,313 @@ class VVIPReporting:
                 data[date_col], format="ISO8601", errors="coerce"
             ).dt.date
 
-        # remove duplicates with the same "Customer_id" (same customer whose subscription has expired multiple times). Keep last after ordering on "Subscription_date" column
         data.sort_values(by="Subscription_date", ascending=True, inplace=True)
         data = data[~data.index.duplicated(keep="last")]
 
-        print("\n\nPRE-PROCESSED DATA")
-        print("*" * 30)
-        print(data.head(40))
+        data.set_index("Username", inplace=True)
+        data.index.name = "Email"
+        print(data.head())
+        print(data.shape)
+        return data
+
+    def _get_leads_from_active(self):
+        print("\nGETTING DATA FROM ITERA DIGITAL...")
+        headers = {"accept": "application/json", "Api-Token": os.getenv("active_api")}
+
+        ## build dict with custom fields
+        url = str(os.getenv("active_url")) + "fields"
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            resp = json.loads(response.text)
+            custom_fields = {}
+            for field in resp["fields"]:
+                # print(f"{field['id']}: {field['perstag']}")
+                custom_fields[field["id"]] = field["perstag"]
+
+            # save custom fields for later contacts update
+            with open("./data/itera_custom_fields.json", "w") as file:
+                json.dump(custom_fields, file)
+
+            # download contacts from list
+            # url = "https://virtualvip.api-us1.com/api/3/contacts?listid=1"
+
+            overall = pd.DataFrame()
+            ids_list = []
+            for list_id in [1, 2]:
+                url = str(os.getenv("active_url")) + f"contacts?listid={list_id}"
+                try:
+                    response = requests.get(url, headers=headers, timeout=30)
+                    resp = json.loads(response.text)
+
+                    list_of_contacts = []
+                    list_of_ids = []
+
+                    for contact in resp["contacts"]:
+                        ids_dict = {}
+                        contact_dict = {}
+                        url = (
+                            str(os.getenv("active_url"))
+                            + f"contacts/{contact['id']}/fieldValues"
+                        )
+                        attributes = requests.get(url, headers=headers, timeout=30)
+
+                        ids_dict[contact["email"]] = contact["id"]
+
+                        # pprint(json.loads(attributes.text), indent=2)
+                        contact_dict["Nome"] = contact["firstName"]
+                        contact_dict["Cognome"] = contact["lastName"]
+                        contact_dict["Email"] = contact["email"]
+                        contact_dict["Telefono"] = contact["phone"]
+
+                        resp = json.loads(attributes.text)
+                        _dict = {}
+                        for contact in resp["fieldValues"]:
+                            # print(custom_fields[contact["field"]])
+                            if contact["field"]:
+                                contact_dict[custom_fields[contact["field"]]] = contact[
+                                    "value"
+                                ]
+                            if contact["field"] in ["8", "9"]:
+                                _dict[contact["field"]] = contact["id"]
+
+                        ids_dict.update(_dict)
+                        list_of_ids.append(ids_dict)
+
+                        list_of_contacts.append(contact_dict)
+
+                    # print(len(list_of_ids))
+                    ids_list.append(list_of_ids)
+                    data = pd.DataFrame.from_records(list_of_contacts)
+
+                    # remove test users created with email: *@formulacoach.it before saving
+                    data = data[~data["Email"].str.contains("formulacoach.it")]
+                    data = data.set_index("Email")
+                    if list_id == 1:
+                        data["Form"] = "complete"
+                    elif list_id == 2:
+                        data["Form"] = "missing"
+                    # print(data)
+                    overall = pd.concat([overall, data])
+
+                except ApiException as err:
+                    print(
+                        f"ACTIVE: Exception when getting contacts from list : {err}\n"
+                    )
+
+            # make it compatible with old code
+            _l = []
+            for sublist in ids_list:
+                _l.extend(sublist)
+
+            # print(list(_l))
+            # print(len(_l))
+
+            # save IteraContacts as JSON file
+            with open(
+                os.getenv("itera_contacts_missing"), "w"
+            ) as file:  #    type: ignore
+                json.dump(_l, file)
+
+            # print(overall)
+            to_check = overall.sort_index()
+            if to_check.index.has_duplicates:
+                print("WARNING DUPLICATED RECORDS IN ITERA LISTS")
+                raise ValueError("ITERA data contain duplicated emails !!!")
+
+            to_save = overall[["SALES_CHANNEL"]]
+            # for later use when updating Customer Contacts
+            to_save.to_csv(os.getenv("itera_customers_missing"))
+
+            return overall
+
+        except ApiException as err:
+            print(f"ACTIVE: Exception when calling custom fields: {err}\n")
+
+    def _active_data_pre_processing(self, data: pd.DataFrame | None):
+        if isinstance(data, type(None)):
+            raise ValueError("ERROR: dataframe is empty")
+
+        # print(data, "\n")
+        # print(data.columns)
+        # renaming columns
+        data.rename(
+            columns={
+                "TELEFONO": "Telefono",
+                "QUALIFICA_AZIENDALE": "Qualifica",
+                "SETTORE_AZIENDA": "Settore",
+                "DIMENSIONE_IMPRESA": "Impresa",
+                "FORMAZIONE": "Formazione",
+                "DOMANDA_1": "Domanda1",
+                "DOMANDA_2": "Domanda2",
+                "DOMANDA_3": "Domanda3",
+            },
+            inplace=True,
+        )
+        data["Agency"] = "itera"
+        data["RCT_group"] = "Business_Sales"
+
+        data.drop(
+            columns=["SALES_CHANNEL", "LEAD_STATUS"],
+            axis=1,
+            errors="ignore",
+            inplace=True,
+        )
+
+        data = data[
+            [
+                "Nome",
+                "Cognome",
+                "Telefono",
+                "Qualifica",
+                "Settore",
+                "Impresa",
+                "Formazione",
+                "Domanda1",
+                "Domanda2",
+                "Domanda3",
+                "Form",
+                "Agency",
+                "RCT_group",
+            ]
+        ]
+        print(data.head())
         print(data.shape)
 
-        return agency_data, data
+        return data
 
-    def _reporting(self, agency_data: pd.DataFrame, data: pd.DataFrame) -> pd.DataFrame:
-        """Identify the different Customer Events:
-        Lead --> Free Trial --> Trial Expired --> Subscription"""
+    def _get_leads_from_brevo(self):
+        print("\nGETTING DATA FROM NETING...")
+        urls = [os.getenv("brevo_url"), os.getenv("brevo_url_missing")]
+        dataframe = pd.DataFrame()
+        for url_get in urls:
+            try:
+                resp = requests.get(
+                    url=url_get,  # type: ignore
+                    headers={
+                        "accept": "application/json",
+                        "api-key": os.getenv("brevo_api_key"),
+                    },  # type: ignore
+                    timeout=30,
+                )
+                # print(resp.status_code)
+                data = json.loads(resp.text)
+                if isinstance(url_get, str):
+                    pass
+                else:
+                    raise ValueError("returned none value")
 
-        # prepare dataset for comparison with agency_data
-        data.set_index("Email", inplace=True)
-        data.sort_index(inplace=True)
-        data.index = data.index.map(str.lower)
+                data = self._brevo_data_pre_processing(data, url_get)
+                dataframe = pd.concat([dataframe, data])
 
-        print("\n\nREPORTING:")
-        print("*" * 50)
-        print(agency_data)
-        print()
-        print(data)
-        print("*" * 50)
+            except ApiException as err:
+                print(f"Exception when calling get_contacts_from_list: {err}\n")
+
+        to_check = dataframe.sort_index()
+        if to_check.index.has_duplicates:
+            print("WARNING DUPLICATED RECORDS IN NETING LISTS")
+            raise ValueError("ITERA data contain duplicated emails !!!")
+
+        print(dataframe.head())
+        print(dataframe.shape)
+
+        return dataframe
+
+    def _brevo_data_pre_processing(self, data: Any, list_url: str):
+        # print("BREVO PREPROCESSING")
+        # pprint(data, indent=2)
+        # pprint(data["contacts"])
+        customer_list = []
+        for elem in data["contacts"]:
+            elem["attributes"]["Email"] = elem["email"]
+            customer_list.append(elem["attributes"])
+
+        # print(pd.DataFrame(customer_list))
+        dataframe = pd.DataFrame(customer_list)
+
+        dataframe = dataframe[~dataframe["Email"].str.contains("formulacoach.it")]
+
+        # selecting a subset of columns:
+        dataframe = dataframe[
+            [
+                "FIRSTNAME",
+                "LASTNAME",
+                "Email",
+                "TELEFONO",
+                "QUALIFICA",
+                "ATECO",
+                "IMPRESA",
+                "FORMAZIONE",
+                "TIPO_FORMAZIONE",
+                "ANNI_FORMAZIONE_AZIENDA",
+                "PENSIERO_SU_AI",
+            ]
+        ]
+
+        # renaming columns
+        dataframe.rename(
+            columns={
+                "FIRSTNAME": "Nome",
+                "LASTNAME": "Cognome",
+                "TELEFONO": "Telefono",
+                "QUALIFICA": "Qualifica",
+                "ATECO": "Settore",
+                "IMPRESA": "Impresa",
+                "FORMAZIONE": "Formazione",
+                "TIPO_FORMAZIONE": "Domanda1",
+                "ANNI_FORMAZIONE_AZIENDA": "Domanda2",
+                "PENSIERO_SU_AI": "Domanda3",
+            },
+            inplace=True,
+        )
+
+        if list_url == os.getenv("brevo_url"):
+            dataframe["Form"] = "complete"
+        elif list_url == os.getenv("brevo_url_missing"):
+            dataframe["Form"] = "missing"
+
+        dataframe["Agency"] = "neting"
+        dataframe["RCT_group"] = "Business_Sales"
+
+        # print(dataframe.head())
+
+        dataframe.drop(
+            columns=["CHANNEL", "STATUS"], axis=1, errors="ignore", inplace=True
+        )
+
+        dataframe.set_index("Email", inplace=True)
+        # print(dataframe.columns)
+
+        return dataframe
+
+    def _overall_customers(self, itera, neting):
+        overall = pd.concat([itera, neting])
+        overall.sort_index(inplace=True)
+        # check duplicates
+        to_check = overall.sort_index()
+        if to_check.index.has_duplicates:
+            print("WARNING DUPLICATED RECORDS IN OVERALL  DATASET")
+            raise ValueError("ITERA data contain duplicated emails !!!")
+
+        print("\nOVERALL LEADS")
+        print("*" * 30)
+        print(overall.head())
+        print(f"\nDATASET SHAPE: {overall.shape}")
+        return overall
+
+    def _get_vvip_reporting(self, overall):
+        id_token = self._authenticate()
+        vvip_data = self._get_vvip_data(id_token)
+
+        idx_overall = overall.index
+
         #####################################################
         # (1) Identify Leads (Customers that have yet to activate a free trial)
         #####################################################
-        mask = data["Customer_flag"] == "Free Trial"
-        data_leads = data[mask]
+        mask = vvip_data["Customer_flag"] == "Free Trial"
+        data_leads = vvip_data[mask]
 
         # email that are in "agency_data" and not in "data"
-        leads = agency_data.merge(
+        leads = overall.merge(
             data_leads, how="left", left_index=True, right_index=True, indicator=True
         ).loc[lambda x: x["_merge"] != "both"]
 
@@ -229,21 +421,24 @@ class VVIPReporting:
         ]
         leads["Status"] = "Leads"
 
+        idx_leads = leads.index
+
         print("\n\nCOMMERCIAL LEADS:")
         print("*" * 50)
-        print(leads)
+        print(leads.head())
+        print(f"\nLEADS SHAPE: {leads.shape}")
         print("*" * 50)
 
         #####################################################
         # (2) Customers with an active Free Trial
         #####################################################
-        mask = (data["Customer_flag"] == "Free Trial") & (
-            data["Expiration_date"] >= datetime.now().date()
+        mask = (vvip_data["Customer_flag"] == "Free Trial") & (
+            vvip_data["Expiration_date"] >= datetime.now().date()
         )
-        print(datetime.now().date())
-        data_trial = data[mask]
+        # print(datetime.now().date())
+        data_trial = vvip_data[mask]
 
-        active_trials = agency_data.merge(
+        active_trials = overall.merge(
             data_trial, how="inner", left_index=True, right_index=True, indicator=True
         )
 
@@ -252,20 +447,23 @@ class VVIPReporting:
         ]
         active_trials["Status"] = "Active_Trials"
 
+        idx_active_trials = active_trials.index
+
         print("\n\nACTIVE TRIALS:")
         print("*" * 50)
-        print(active_trials)
+        print(active_trials.head())
+        print(f"\nACTIVE TRIALS SHAPE: {active_trials.shape}")
         print("*" * 50)
 
         #####################################################
         # (3) Customers with a Free Trial expired
         #####################################################
-        mask = (data["Customer_flag"] == "Free Trial") & (
-            data["Expiration_date"] < datetime.now().date()
+        mask = (vvip_data["Customer_flag"] == "Free Trial") & (
+            vvip_data["Expiration_date"] < datetime.now().date()
         )
-        data_expired_trial = data[mask]
+        data_expired_trial = vvip_data[mask]
 
-        expired_trials = agency_data.merge(
+        expired_trials = overall.merge(
             data_expired_trial,
             how="inner",
             left_index=True,
@@ -278,9 +476,13 @@ class VVIPReporting:
         ]
         expired_trials["Status"] = "Trials_Expired"
 
-        print("\n\nEXPIRED TRIALS:")
+        idx_expired_trials = expired_trials.index
+
+        print("\nEXPIRED TRIALS:")
         print("*" * 50)
-        print(expired_trials)
+        print(expired_trials.head())
+        print(f"\nEXPIRED TRIALS SHAPE: {expired_trials.shape}")
+
         print("*" * 50)
 
         #####################################################
@@ -288,21 +490,21 @@ class VVIPReporting:
         #####################################################
 
         condition_1 = (
-            (data["Customer_flag"] == "Business")
-            & (data["Expiration_date"] >= datetime.now().date())
-            & (pd.isna(data["Renewal_date"]))
+            (vvip_data["Customer_flag"] == "Business")
+            & (vvip_data["Expiration_date"] >= datetime.now().date())
+            & (pd.isna(vvip_data["Renewal_date"]))
         )
 
         condition_2 = (
-            (data["Customer_flag"] == "Business")
-            & (pd.isna(data["Expiration_date"]))
-            & (data["Renewal_date"] >= datetime.now().date())
+            (vvip_data["Customer_flag"] == "Business")
+            & (pd.isna(vvip_data["Expiration_date"]))
+            & (vvip_data["Renewal_date"] >= datetime.now().date())
         )
 
         mask = condition_1 | condition_2
-        data_subscriptions = data[mask]
+        data_subscriptions = vvip_data[mask]
 
-        subscriptions = agency_data.merge(
+        subscriptions = overall.merge(
             data_subscriptions,
             how="inner",
             left_index=True,
@@ -315,119 +517,64 @@ class VVIPReporting:
         # ]
         subscriptions["Status"] = "Subscriptions"
 
+        idx_subscriptions = subscriptions.index
+
         print("\n\nACTIVE SUBSCRIPTIONS:")
         print("*" * 50)
-        print(subscriptions)
+        print(subscriptions.head())
+        print(f"\nSUBSCRIPTIONS SHAPE: {subscriptions.shape}")
+
         print("*" * 50)
 
         #####################################################
-        # Create Overall Dataset
-        #####################################################
+        # checks whether or not there are non-classified data
+        idx_diff = idx_overall.difference(idx_leads)
+        idx_diff = idx_diff.difference(idx_active_trials)
+        idx_diff = idx_diff.difference(idx_expired_trials)
+        idx_diff = idx_diff.difference(idx_subscriptions)
+        if idx_diff.to_list():
+            raise ValueError(
+                f"\nWARNING: There are some non classified customers. Check your code! {idx_diff.to_list()}"
+            )
 
-        overall = pd.concat([leads, active_trials, expired_trials, subscriptions])
-        overall.sort_index(ascending=True, inplace=True)
-        overall = overall[~overall.index.duplicated(keep="last")]
+        overall_df = pd.concat([leads, active_trials, expired_trials, subscriptions])
+        overall_df.sort_index(ascending=True, inplace=True)
 
         # check if there are inconsistencies in the Channel with Subscriptions between: "RCT_group" and "SalesChannel"
         # remove NaNvalues from "SalesChannel" since these Leads have not been converted yet
-        subscr_check = overall.dropna(subset=["SalesChannel"])
+        subscr_check = overall_df.dropna(subset=["SalesChannel"])
         if not subscr_check["RCT_group"].equals(subscr_check["SalesChannel"]):
             print(
                 "\nWARNING: Some channels assigned through RCT differ from some that were used to subscribe VVIP. Check the dataframe!!!\n"
             )
 
-        # reorder columns
-        overall = overall[
-            [
-                "Agency",
-                "RCT_group",
-                # "SalesChannel",
-                "Status",
-                # "Customer_flag",
-            ]
-        ]
-
-        overall["Customers"] = 1
-
-        sales_update = overall[["Status"]]
-
-        #### update SALES REPORT #######
-        print("-" * 100)
-        # print("UPDATE SALES REPORT")
-
-        filepath = "./channels/sales" + "_" + str(datetime.now().date()) + ".csv"
-        sales_data = pd.read_csv(filepath, index_col=["Email"])
-        sales_update = overall[["Status"]]
+        overall_df = overall_df[["Status"]]
 
         # print(overall)
+        # print(overall_status)
 
-        sales_data = pd.merge(
-            sales_data, sales_update, left_index=True, right_index=True, how="left"
-        )
+        final = pd.merge(overall, overall_df, left_index=True, right_index=True)
 
-        filepath = (
-            "./channels/leads_w_missing_data"
-            + "_"
-            + str(datetime.now().date())
-            + ".csv"
-        )
-        sales_missing = pd.read_csv(filepath, index_col=["Email"])
-        # print("\nsales missing")
-        # print(sales_missing)
+        return final
 
-        output_file = "./channels/sales_" + str(datetime.now().date()) + ".xlsx"
-        with pd.ExcelWriter(output_file) as excel_writer:
-            sales_data.to_excel(excel_writer, sheet_name="Leads_w_complete_data")
-            sales_missing.to_excel(excel_writer, sheet_name="Leads_w_missing_data")
-
-        #### update MARKETING REPORT #######
-        mktg_data = pd.read_csv("./output/output.csv", index_col=["Email"])
-        mktg_data.drop(["Unnamed: 0"], axis=1, inplace=True)
-
-        output_file = (
-            "./channels/mktg_campaigns" + "_" + str(datetime.now().date()) + ".xlsx"
-        )
-
-        mktg_data = pd.merge(
-            mktg_data,
-            overall[["Status"]],
-            left_index=True,
-            right_index=True,
-            how="left",
-        )
-
-        # print(mktg_data)
-
-        with pd.ExcelWriter(output_file) as excel_writer:
-            mktg_data.to_excel(excel_writer, sheet_name="Leads_w_complete_data")
-            sales_missing.to_excel(excel_writer, sheet_name="Leads_w_missing_data")
-
-        print(mktg_data)
-
-        print("-" * 100)
-        print("\n\nOverall Dataset:")
-        print("*" * 50)
-        print(overall)
-        print("*" * 50)
-
-        return overall
-
-    def _update_itera_campaign(self, data: pd.DataFrame):
+    def _update_itera(self, data):
         print("\nUPDATING ITERA_DIGITAL CONTACTS...")
         print("*" * 60)
         itera = data.loc[data["Agency"] == "itera"][["RCT_group", "Status"]]
-        print(itera, "\n")
+        # print(itera, "\n")
 
         # load custom fields attributes
         with open("./data/itera_custom_fields.json", "r") as file:
             custom_fields = json.load(file)
 
         # load Customer id attributes
-        with open("./data/itera_contacts.json", "r") as file:
+        with open("./data/itera_contacts_missing.json", "r") as file:
             itera_contacts = json.load(file)
 
-        # # # load Customer "SALES_CHANNEL"
-        itera_customers = pd.read_csv("./data/itera_customers.csv", index_col=["Email"])
+        # load Customer "SALES_CHANNEL"
+        itera_customers = pd.read_csv(
+            "./data/itera_customers_missing.csv", index_col=["Email"]
+        )
 
         # always update field "LEAD STATUS"
         update_lead_status = pd.merge(
@@ -452,7 +599,7 @@ class VVIPReporting:
             print(contact)
             try:
                 # updating the Lead Status field
-                url_lead_status = str(active_url) + "fieldValues"
+                url_lead_status = str(os.getenv("active_url")) + "fieldValues"
                 payload = {
                     "fieldValue": {
                         "contact": contact[k],
@@ -476,9 +623,7 @@ class VVIPReporting:
 
         # update only those Customers that have a NaN value in the "SALES_CHANNEL" column
         to_update = itera_customers[itera_customers["SALES_CHANNEL"].isnull()]
-        # print(to_update)
-
-        # print(to_update)
+        print(to_update)
         # check that all indexes (Emails) are in the itera dataset
         error = to_update.index.difference(itera.index)
         if list(error):
@@ -496,26 +641,6 @@ class VVIPReporting:
             filter(lambda x: custom_fields[x] == "SALES_CHANNEL", custom_fields)
         )[0]
 
-        # FAKE DICTIONARY ###################################################
-        # final = {
-        #     "rodancom@icloud.com": {
-        #         "RCT_group": "Test",
-        #         "Status": "",
-        #     },
-        #     "michele.sabbadini@gustochef.it": {
-        #         "RCT_group": "Test",
-        #         "Status": "",
-        #     },
-        #     "mirdita@gmail.com": {
-        #         "RCT_group": "Test",
-        #         "Status": "",
-        #     },
-        #     "Pietro.p@whitelist.pro": {
-        #         "RCT_group": "Test",
-        #         "Status": "",
-        #     },
-        # }
-        ####################################################################
         # updating attributes
         headers = {"accept": "application/json", "Api-Token": os.getenv("active_api")}
         for k, v in final.items():
@@ -528,7 +653,7 @@ class VVIPReporting:
             print(contact)
 
             # updating the Sales_Channel field
-            url_sales_channel = str(active_url) + "fieldValues"
+            url_sales_channel = str(os.getenv("active_url")) + "fieldValues"
             try:
                 payload = {
                     "fieldValue": {
@@ -547,41 +672,24 @@ class VVIPReporting:
                 elif resp_sales.status_code == 404:
                     print("\nERROR: some email(s) is/are not correct\n")
 
-                # # updating the Lead Status field
-                # url_lead_status = str(active_url) + "fieldValues"
-                # payload = {
-                #     "fieldValue": {
-                #         "contact": contact[k],
-                #         "field": key_lead_status,  # 9
-                #         "value": v["Status"],
-                #     },
-                #     "useDefaults": False,
-                # }
-                # resp_status = requests.post(
-                #     url_lead_status, json=payload, headers=headers, timeout=30
-                # )
-                # if resp_status.status_code == 204:
-                #     print("\n CONTACTS UPDATED CORRECTLY\n")
-                # elif resp_status.status_code == 404:
-                #     print("\nERROR: some email(s) is/are not correct\n")
-
             except Exception as err:
                 print(f"Exception when calling updating contacts: {err}\n")
 
-    def _update_neting_campaign(self, data: pd.DataFrame):
+    def _update_neting(self, data):
         print("\nUPDATING NETING CONTACTS...")
         print("*" * 60)
         # print(data)
+        # print(data.columns)
+        # print(data.groupby(["Status"])["Agency"].count())
         neting = data.loc[data["Agency"] == "neting"][["RCT_group", "Status"]]
-        # remove contacts already updated
 
         print(neting, "\n")
 
-        brevo_url = brevo_update_url
+        brevo_url = os.getenv("brevo_update_contacts_url")
         headers = {
             "accept": "application/json",
             "content-type": "application/json",
-            "api-key": brevo_api,
+            "api-key": os.getenv("brevo_api_key"),
         }
 
         payload = {}
@@ -604,53 +712,43 @@ class VVIPReporting:
             response = requests.post(
                 brevo_url, json=payload, headers=headers, timeout=30  # type: ignore
             )
-            print(response)
             print(response.text)
             if response.status_code == 204:
-                print("\n CONTACTS UPDATED CORRECTLY\n")
+                print("\nCONTACTS UPDATED CORRECTLY\n")
             elif response.status_code == 404:
                 print("\nERROR: some email(s) is/are not correct\n")
         except ApiException as err:
             print(f"Exception when update multiple contacts: {err}\n")
 
     def _output_reports(self, data: pd.DataFrame) -> pd.DataFrame:
-        """This function outputs the Campaign Reports"""
-        data.reset_index(inplace=True, drop=True)
-        data2 = data.drop(columns=["Agency"])
-        # print(data)
-        df_report = data2.groupby(["RCT_group", "Status"]).agg("sum").unstack()
-        df_report.columns = df_report.columns.droplevel()  # type: ignore
+        print("\nGENERATING REPORTING")
+        print("*" * 30)
+        print()
+        print(data)
 
-        if "Leads" not in df_report:
-            df_report["Leads"] = np.nan
-        if "Active_Trials" not in df_report:
-            df_report["Active_Trials"] = np.nan
-        if "Trials_Expired" not in df_report:
-            df_report["Trials_Expired"] = np.nan
-        if "Subscriptions" not in df_report:
-            df_report["Subscriptions"] = np.nan
+        mask = (data["RCT_group"] == "Business_Sales") & (data["Form"] == "complete")
+        sales_data = data.loc[mask]
 
-        #  res = res.astype("Int64")
+        mask = (data["RCT_group"] == "Business_Sales") & (data["Form"] == "missing")
 
-        df_report = df_report[
-            ["Leads", "Active_Trials", "Trials_Expired", "Subscriptions"]
-        ]
-        df_report.index.name = None  # remove index name
-        df_report = df_report.rename_axis(None, axis=1)  # type: ignore  # remove columns index name
+        sales_missing = data.loc[mask]
 
-        print("\n\nREPORTING:")
-        print("*" * 60)
-        print(df_report)
-        print("*" * 60)
+        output_file = "./channels/sales_" + str(datetime.now().date()) + ".xlsx"
+        with pd.ExcelWriter(output_file) as excel_writer:
+            sales_data.to_excel(excel_writer, sheet_name="Leads_w_complete_data")
+            sales_missing.to_excel(excel_writer, sheet_name="Leads_w_missing_data")
 
-        return df_report  # type: ignore
+        output_file = (
+            "./channels/mktg_campaigns" + "_" + str(datetime.now().date()) + ".xlsx"
+        )
+        data.to_excel(output_file)
+
+        return data  # type: ignore
 
     def _save_reports(self, report: pd.DataFrame) -> None:
-        report.to_excel(report_filepath)
+        report.to_excel(os.getenv("report_filepath"))
 
 
 if __name__ == "__main__":
-    MissingDataLeads()
-    rct()
-    VVIPReporting(url, get_url, post_url)
-    # send_email_to_recipients()
+    DataLeads()
+    send_email_to_recipients()
