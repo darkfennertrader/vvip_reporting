@@ -726,14 +726,18 @@ class DataLeads:
         print("\nGENERATING REPORTING")
         print("*" * 30)
         print()
-        print(data)
-
-        out_rep = data.groupby(["Status"])["Form"].count()
+        print(data.head())
+        data.to_csv("./output/customers.csv")
+        out_rep = data.groupby(["Status", "Agency"])["Form"].count().unstack()
         print()
         print(out_rep)
+        total_by_col = out_rep.sum(axis=1)
         redemption = (
-            (out_rep["Active_Trials"] + out_rep["Trials_Expired"]) / data.shape[0] * 100
+            (total_by_col["Active_Trials"] + total_by_col["Trials_Expired"])
+            / total_by_col.sum()
+            * 100
         )
+
         print(f"\nOnline Redemption: {redemption:.2f}%")
 
         mask = (data["RCT_group"] == "Business_Sales") & (data["Form"] == "complete")
@@ -759,6 +763,23 @@ class DataLeads:
         report.to_excel(os.getenv("report_filepath"))
 
 
+def leads():
+    data = pd.read_csv("./output/customers.csv")
+    out_rep = data.groupby(["Status", "Agency"])["Form"].count().unstack()
+
+    print()
+    print(out_rep)
+    print()
+    total_by_col = out_rep.sum(axis=1)
+    total_by_row = out_rep.sum(axis=0)
+    print(total_by_row)
+    print()
+    print(total_by_col)
+
+
 if __name__ == "__main__":
     DataLeads()
     # send_email_to_recipients()
+
+    # Lead Stats
+    # leads()
