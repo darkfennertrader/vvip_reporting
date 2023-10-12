@@ -305,6 +305,8 @@ class DataLeads:
         to_check = dataframe.sort_index()
         if to_check.index.has_duplicates:
             print("WARNING DUPLICATED RECORDS IN NETING LISTS")
+            print(to_check[to_check.index.duplicated()])
+            print()
             raise ValueError("ITERA data contain duplicated emails !!!")
 
         print(dataframe.head())
@@ -726,6 +728,14 @@ class DataLeads:
         print()
         print(data)
 
+        out_rep = data.groupby(["Status"])["Form"].count()
+        print()
+        print(out_rep)
+        redemption = (
+            (out_rep["Active_Trials"] + out_rep["Trials_Expired"]) / data.shape[0] * 100
+        )
+        print(f"\nOnline Redemption: {redemption:.2f}%")
+
         mask = (data["RCT_group"] == "Business_Sales") & (data["Form"] == "complete")
         sales_data = data.loc[mask]
 
@@ -751,4 +761,4 @@ class DataLeads:
 
 if __name__ == "__main__":
     DataLeads()
-    send_email_to_recipients()
+    # send_email_to_recipients()
