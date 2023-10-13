@@ -732,6 +732,12 @@ class DataLeads:
         print()
         print(out_rep)
         total_by_col = out_rep.sum(axis=1)
+        total_by_col["Active_Trials"] = (
+            0 if "Active_Trials" not in total_by_col.index else None
+        )
+        total_by_col["Subscribed"] = (
+            0 if "Subscribed" not in total_by_col.index else None
+        )
         redemption = (
             (total_by_col["Active_Trials"] + total_by_col["Trials_Expired"])
             / total_by_col.sum()
@@ -776,10 +782,20 @@ def leads():
     print()
     print(total_by_col)
 
+    total_by_col["Active_Trials"] = (
+        0 if "Active_Trials" not in total_by_col.index else None
+    )
+    total_by_col["Subscribed"] = 0 if "Subscribed" not in total_by_col.index else None
+    redemption = (
+        (total_by_col["Active_Trials"] + total_by_col["Trials_Expired"])
+        / total_by_col.sum()
+        * 100
+    )
+
 
 if __name__ == "__main__":
     DataLeads()
-    # send_email_to_recipients()
+    send_email_to_recipients()
 
     # Lead Stats
     # leads()
