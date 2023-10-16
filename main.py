@@ -307,9 +307,10 @@ class DataLeads:
             print("WARNING DUPLICATED RECORDS IN NETING LISTS")
             print(to_check[to_check.index.duplicated()])
             print()
-            raise ValueError("ITERA data contain duplicated emails !!!")
+            raise ValueError("NETING data contain duplicated emails !!!")
 
         print(dataframe.head())
+        print()
         print(dataframe.shape)
 
         return dataframe
