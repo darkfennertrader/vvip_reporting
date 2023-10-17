@@ -732,20 +732,24 @@ class DataLeads:
         out_rep = data.groupby(["Status", "Agency"])["Form"].count().unstack()
         print()
         print(out_rep)
-        total_by_col = out_rep.sum(axis=1)
-        total_by_col["Active_Trials"] = (
-            0 if "Active_Trials" not in total_by_col.index else None
-        )
-        total_by_col["Subscribed"] = (
-            0 if "Subscribed" not in total_by_col.index else None
-        )
+        total_by_col = out_rep.sum(axis="columns")
+
+        if "Active_Trials" not in total_by_col.index:
+            total_by_col["Active_Trials"] = 0
+
+        if "Subscribed" not in total_by_col.index:
+            total_by_col["Subscribed"] = 0
+
         redemption = (
-            (total_by_col["Active_Trials"] + total_by_col["Trials_Expired"])
+            (
+                total_by_col["Active_Trials"]
+                + total_by_col["Trials_Expired"]
+                + total_by_col["Subscribed"]
+            )
             / total_by_col.sum()
             * 100
         )
-
-        print(f"\nOnline Redemption: {redemption:.2f}%")
+        print(f"\nRedemption: {redemption:.2f}%")
 
         mask = (data["RCT_group"] == "Business_Sales") & (data["Form"] == "complete")
         sales_data = data.loc[mask]
@@ -774,29 +778,40 @@ def leads():
     data = pd.read_csv("./output/customers.csv")
     out_rep = data.groupby(["Status", "Agency"])["Form"].count().unstack()
 
-    print()
+    print("STATS")
     print(out_rep)
     print()
-    total_by_col = out_rep.sum(axis=1)
-    total_by_row = out_rep.sum(axis=0)
+    total_by_row = out_rep.sum(axis="rows")
+    total_by_col = out_rep.sum(axis="columns")
+
     print(total_by_row)
     print()
     print(total_by_col)
 
-    total_by_col["Active_Trials"] = (
-        0 if "Active_Trials" not in total_by_col.index else None
-    )
-    total_by_col["Subscribed"] = 0 if "Subscribed" not in total_by_col.index else None
+    if "Active_Trials" not in total_by_col.index:
+        total_by_col["Active_Trials"] = 0
+
+    if "Subscribed" not in total_by_col.index:
+        total_by_col["Subscribed"] = 0
+
+    print()
+    print(total_by_col)
+
     redemption = (
-        (total_by_col["Active_Trials"] + total_by_col["Trials_Expired"])
+        (
+            total_by_col["Active_Trials"]
+            + total_by_col["Trials_Expired"]
+            + total_by_col["Subscribed"]
+        )
         / total_by_col.sum()
         * 100
     )
+    print(f"\nRedemption: {redemption:.2f}%")
 
 
 if __name__ == "__main__":
     DataLeads()
-    send_email_to_recipients()
+    # send_email_to_recipients()
 
     # Lead Stats
     # leads()
