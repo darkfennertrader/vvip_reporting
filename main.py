@@ -133,7 +133,7 @@ class DataLeads:
 
             overall = pd.DataFrame()
             ids_list = []
-            for list_id in [1, 2]:
+            for list_id in [1, 2, 3]:
                 url = str(os.getenv("active_url")) + f"contacts?listid={list_id}"
                 try:
                     response = requests.get(url, headers=headers, timeout=30)
@@ -186,6 +186,8 @@ class DataLeads:
                         data["Form"] = "complete"
                     elif list_id == 2:
                         data["Form"] = "missing"
+                    elif list_id == 3:
+                        data["Form"] = "calendly"
                     # print(data)
                     overall = pd.concat([overall, data])
 
@@ -328,6 +330,7 @@ class DataLeads:
         dataframe = pd.DataFrame(customer_list)
 
         dataframe = dataframe[~dataframe["Email"].str.contains("formulacoach.it")]
+        dataframe = dataframe[~dataframe["Email"].str.contains("neting.it")]
 
         # selecting a subset of columns:
         dataframe = dataframe[
@@ -388,8 +391,10 @@ class DataLeads:
         # check duplicates
         to_check = overall.sort_index()
         if to_check.index.has_duplicates:
-            print("WARNING DUPLICATED RECORDS IN OVERALL  DATASET")
-            raise ValueError("ITERA data contain duplicated emails !!!")
+            print("WARNING DUPLICATED RECORDS IN OVERALL LIST")
+            print(to_check[to_check.index.duplicated()])
+            print()
+            raise ValueError("OVERALL dataset contain duplicated emails !!!")
 
         print("\nOVERALL LEADS")
         print("*" * 30)
@@ -728,6 +733,17 @@ class DataLeads:
         print("*" * 30)
         print()
         print(data.head())
+
+        # create a sheet only for the new customers
+        old_cust = pd.read_csv("./output/customers.csv", index_col=["Email"])
+        print()
+        old_cust.sort_index(inplace=True)
+        idx_diff = data.index.difference(old_cust.index)
+
+        print("\nNEW LEADS:")
+        print(idx_diff)
+        new_leads = data.loc[idx_diff]
+
         data.to_csv("./output/customers.csv")
         out_rep = data.groupby(["Status", "Agency"])["Form"].count().unstack()
         print()
@@ -758,10 +774,16 @@ class DataLeads:
 
         sales_missing = data.loc[mask]
 
+        mask = (data["RCT_group"] == "Business_Sales") & (data["Form"] == "calendly")
+
+        sales_calendly = data.loc[mask]
+
         output_file = "./channels/sales_" + str(datetime.now().date()) + ".xlsx"
         with pd.ExcelWriter(output_file) as excel_writer:
+            new_leads.to_excel(excel_writer, sheet_name="New_Leads")
             sales_data.to_excel(excel_writer, sheet_name="Leads_w_complete_data")
             sales_missing.to_excel(excel_writer, sheet_name="Leads_w_missing_data")
+            sales_calendly.to_excel(excel_writer, sheet_name="Leads_for_Calendly")
 
         output_file = (
             "./channels/mktg_campaigns" + "_" + str(datetime.now().date()) + ".xlsx"
@@ -811,7 +833,7 @@ def leads():
 
 if __name__ == "__main__":
     DataLeads()
-    # send_email_to_recipients()
+    send_email_to_recipients()
 
     # Lead Stats
     # leads()
