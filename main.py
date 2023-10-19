@@ -46,11 +46,11 @@ class DataLeads:
         #########   VirtualVIP data   ########
         final_dataset = self._get_vvip_reporting(overall)
 
-        # #########   UPDATE Campaigns   ########
+        # # #########   UPDATE Campaigns   ########
         self._update_neting(final_dataset)
         self._update_itera(final_dataset)
 
-        #########   Generate Reporting   ########
+        # ########   Generate Reporting   ########
         report = self._output_reports(final_dataset)
 
     def _authenticate(self) -> str:
@@ -281,6 +281,8 @@ class DataLeads:
         print("\nGETTING DATA FROM NETING...")
         urls = [os.getenv("brevo_url"), os.getenv("brevo_url_missing")]
         dataframe = pd.DataFrame()
+
+        #### WARNING: REMEMBER TO UPDATE LOOP WHEN CONTACTS EXCEED 500 ########
         for url_get in urls:
             try:
                 resp = requests.get(
@@ -293,6 +295,8 @@ class DataLeads:
                 )
                 # print(resp.status_code)
                 data = json.loads(resp.text)
+                # print(len(data["contacts"]))
+
                 if isinstance(url_get, str):
                     pass
                 else:
@@ -300,10 +304,12 @@ class DataLeads:
 
                 data = self._brevo_data_pre_processing(data, url_get)
                 dataframe = pd.concat([dataframe, data])
+                # print(f"{os.getenv('brevo_url')}: {dataframe.shape}")
 
             except ApiException as err:
                 print(f"Exception when calling get_contacts_from_list: {err}\n")
 
+        print(f"NETING dataframe: {dataframe.shape}")
         to_check = dataframe.sort_index()
         if to_check.index.has_duplicates:
             print("WARNING DUPLICATED RECORDS IN NETING LISTS")
@@ -374,7 +380,10 @@ class DataLeads:
         dataframe["Agency"] = "neting"
         dataframe["RCT_group"] = "Business_Sales"
 
+        # print(dataframe.isna().sum())
+
         # print(dataframe.head())
+        # print(dataframe.shape)
 
         dataframe.drop(
             columns=["CHANNEL", "STATUS"], axis=1, errors="ignore", inplace=True
@@ -400,6 +409,8 @@ class DataLeads:
         print("*" * 30)
         print(overall.head())
         print(f"\nDATASET SHAPE: {overall.shape}")
+        # print()
+        # print(overall[overall["Agency"] == "neting"].shape)
         return overall
 
     def _get_vvip_reporting(self, overall):
@@ -690,6 +701,7 @@ class DataLeads:
         # print(data.columns)
         # print(data.groupby(["Status"])["Agency"].count())
         neting = data.loc[data["Agency"] == "neting"][["RCT_group", "Status"]]
+        # print(neting.shape)
 
         print(neting, "\n")
 
@@ -700,39 +712,52 @@ class DataLeads:
             "api-key": os.getenv("brevo_api_key"),
         }
 
-        payload = {}
-        contacts_list = []
-        for email in list(neting.index):
-            _dict = {}
-            _dict["attributes"] = {
-                "Channel": self.mktg_actions[neting.loc[email].values[0]],
-                "Status": neting.loc[email].values[1],
-            }
-            _dict["email"] = email
-            contacts_list.append(_dict)
+        # split update in multiple of 100 contacts
+        n_contacts = neting.shape[0]
 
-        payload["contacts"] = contacts_list
-        print("\nBREVO Campaign Manager list:\n")
-        pprint(payload, indent=1)
+        df_lst = [neting.iloc[i : i + 100] for i in range(0, n_contacts, 100)]
+        # print()
+        # print(len(df_lst))
+        # print(df_lst[0].shape)
+        # print(df_lst[-1].shape)
 
-        # update Brevo Campaign Manager
-        try:
-            response = requests.post(
-                brevo_url, json=payload, headers=headers, timeout=30  # type: ignore
-            )
-            print(response.text)
-            if response.status_code == 204:
-                print("\nCONTACTS UPDATED CORRECTLY\n")
-            elif response.status_code == 404:
-                print("\nERROR: some email(s) is/are not correct\n")
-        except ApiException as err:
-            print(f"Exception when update multiple contacts: {err}\n")
+        for df_ in df_lst:
+            print(f"updating batch of shape: {df_.shape}")
+            payload = {}
+            contacts_list = []
+            for email in list(df_.index):
+                _dict = {}
+                _dict["attributes"] = {
+                    "Channel": self.mktg_actions[df_.loc[email].values[0]],
+                    "Status": df_.loc[email].values[1],
+                }
+                _dict["email"] = email
+                contacts_list.append(_dict)
+
+            payload["contacts"] = contacts_list
+            # print("\nBREVO Campaign Manager list:\n")
+            # pprint(payload, indent=1)
+
+            # update Brevo Campaign Manager
+            try:
+                response = requests.post(
+                    brevo_url, json=payload, headers=headers, timeout=30  # type: ignore
+                )
+                print(response.text)
+                if response.status_code == 204:
+                    print("\nCONTACTS UPDATED CORRECTLY\n")
+                elif response.status_code == 404:
+                    print("\nERROR: some email(s) is/are not correct\n")
+            except ApiException as err:
+                print(f"Exception when update multiple contacts: {err}\n")
 
     def _output_reports(self, data: pd.DataFrame) -> pd.DataFrame:
         print("\nGENERATING REPORTING")
         print("*" * 30)
         print()
         print(data.head())
+        print(data.shape)
+        print(data.isna().sum())
 
         # create a sheet only for the new customers
         old_cust = pd.read_csv("./output/customers.csv", index_col=["Email"])
@@ -743,6 +768,8 @@ class DataLeads:
         print("\nNEW LEADS:")
         print(idx_diff)
         new_leads = data.loc[idx_diff]
+
+        print(data.shape)
 
         data.to_csv("./output/customers.csv")
         out_rep = data.groupby(["Status", "Agency"])["Form"].count().unstack()
