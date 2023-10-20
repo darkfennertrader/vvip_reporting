@@ -96,7 +96,7 @@ def send_email_to_recipients():
         In alternativa se non si e' ancora iscritto al Trial Gratuito puo' usare il COUPON Clienti del Business Coach. Il cliente ricevera' comunque la PROMO ma dovra' eseguire la procedura di registrazione iscrivendosi sempre come cliente BUSINESS.
         
         ATTENZIONE:
-        In caso il cliente si dovesse iscrivere (oppure si e' gia' iscritto come cliente CONSUMER) non potra' beneficiare della PROMO ma dovra' rieseguire la procedura di registrazione iscrivendosi come cliente BUSINESS per poter beneficiare della PROMO.
+        In caso il cliente si dovesse iscrivere (oppure si e' gia' iscritto come cliente CONSUMER) non potra' beneficiare della PROMO ma dovra' rieseguire la procedura di registrazione iscrivendosi come cliente BUSINESS ed utilizzare la stessa email (per poter beneficiare della PROMO).
         """
     _send_email(SUBJECT, FROM_ADDRESS, recipients, content, sales_path, sales_file)
 
@@ -104,7 +104,7 @@ def send_email_to_recipients():
     others_path = OUTPUT + "_" + str(datetime.now().date()) + ".xlsx"
     others_file = "mktg_campaigns" + "_" + str(datetime.now().date()) + ".xlsx"
     recipients = [TO_ME, TO_JACOPO]
-    # recipients = [TO_ME] # for testing
+    # recipients = [TO_ME]  # for testing
 
     content = """
         LEGENDA:
