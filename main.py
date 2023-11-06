@@ -134,7 +134,10 @@ class DataLeads:
             overall = pd.DataFrame()
             ids_list = []
             for list_id in [1, 2, 3]:
-                url = str(os.getenv("active_url")) + f"contacts?listid={list_id}"
+                url = (
+                    str(os.getenv("active_url"))
+                    + f"contacts?listid={list_id}&limit=100"
+                )
                 try:
                     response = requests.get(url, headers=headers, timeout=30)
                     resp = json.loads(response.text)
@@ -210,8 +213,7 @@ class DataLeads:
             ) as file:  #    type: ignore
                 json.dump(_l, file)
 
-            # print(overall)
-            to_check = overall.sort_index()
+            # print(overall)Mark
             if to_check.index.has_duplicates:
                 print("WARNING DUPLICATED RECORDS IN ITERA LISTS")
                 raise ValueError("ITERA data contain duplicated emails !!!")
@@ -272,7 +274,7 @@ class DataLeads:
                 "RCT_group",
             ]
         ]
-        print(data.head())
+        print(data.head(30))
         print(data.shape)
 
         return data
@@ -859,8 +861,8 @@ def leads():
 
 
 if __name__ == "__main__":
-    # DataLeads()
-    send_email_to_recipients()
+    DataLeads()
+    # send_email_to_recipients()
 
     # Lead Stats
     # leads()

@@ -135,6 +135,9 @@ url = str(active_url) + "fields"
 try:
     response = requests.get(url, headers=headers, timeout=30)
     resp = json.loads(response.text)
+    # print()
+    # pprint(resp, indent=2)
+    # print()
     custom_fields = {}
     for field in resp["fields"]:
         # print(f"{field['id']}: {field['perstag']}")
@@ -144,11 +147,13 @@ try:
     with open("./data/itera_custom_fields.json", "w") as file:
         json.dump(custom_fields, file)
 
-    url = str(active_url) + "contacts?listid=2"
+    url = str(active_url) + "contacts?listid=2&limit=100"  # &id_greater=0&id_less=21"
     try:
         response = requests.get(url, headers=headers, timeout=30)
         resp = json.loads(response.text)
-
+        pprint(resp, indent=2)
+        print(f"\ntotal number of contacts: {resp['meta']['total']}")
+        print()
         list_of_contacts = []
         list_of_ids = []
 
@@ -180,7 +185,7 @@ try:
 
             list_of_contacts.append(contact_dict)
 
-        # print(list_of_ids)
+        print(list_of_ids)
 
         data = pd.DataFrame.from_records(list_of_contacts)
 
@@ -189,8 +194,8 @@ try:
 
         print(data)
 
-        to_save = data.set_index("Email")
-        to_save = to_save[["SALES_CHANNEL"]]
+        # to_save = data.set_index("Email")
+        # to_save = to_save[["SALES_CHANNEL"]]
 
         # save IteraContacts as JSON file
         # with open("./temp/itera_contacts_missing.csv", "w") as file:  # type: ignore
