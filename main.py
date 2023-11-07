@@ -213,7 +213,8 @@ class DataLeads:
             ) as file:  #    type: ignore
                 json.dump(_l, file)
 
-            # print(overall)Mark
+            # print(overall)
+            to_check = overall.sort_index()
             if to_check.index.has_duplicates:
                 print("WARNING DUPLICATED RECORDS IN ITERA LISTS")
                 raise ValueError("ITERA data contain duplicated emails !!!")
