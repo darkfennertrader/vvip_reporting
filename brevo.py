@@ -59,30 +59,46 @@ brevo_api = os.getenv("brevo_api_key")
 #     print(f"Exception when calling update multiple contacts: {err}\n")
 
 
-url_get = "https://api.brevo.com/v3/contacts/lists/4/contacts?limit=500"
-
 dataframe = pd.DataFrame()
 
-try:
-    resp = requests.get(
-        url=url_get,  # type: ignore
-        headers={
-            "accept": "application/json",
-            "api-key": os.getenv("brevo_api_key"),
-        },  # type: ignore
-        timeout=30,
+page = 0
+overall_contacts = []
+while True:
+    # print(page)
+    url_get = (
+        f"https://api.brevo.com/v3/contacts/lists/4/contacts?limit=500&offset={page}"
     )
-    # print(resp.status_code)
-    data = json.loads(resp.text)
-    print(len(data["contacts"]))
+    try:
+        print(url_get)
+        resp = requests.get(
+            url=url_get,  # type: ignore
+            headers={
+                "accept": "application/json",
+                "api-key": os.getenv("brevo_api_key"),
+            },  # type: ignore
+            timeout=30,
+        )
+        # print(resp.status_code)
+        data = json.loads(resp.text)
+        print(len(data["contacts"]))
+        overall_contacts.extend(data["contacts"])
 
-    if isinstance(url_get, str):
-        pass
-    else:
-        raise ValueError("returned none value")
+        # if page % 167 == 0:
+        #     print(data["contacts"])
 
-except ApiException as err:
-    print(f"Exception when calling get_contacts_from_list: {err}\n")
+        if len(data["contacts"]) == 0:
+            break
+
+        page += 500
+        if isinstance(url_get, str):
+            pass
+        else:
+            raise ValueError("returned none value")
+
+    except ApiException as err:
+        print(f"Exception when calling get_contacts_from_list: {err}\n")
+
+print(len(overall_contacts))
 
 
 # customer_list = []

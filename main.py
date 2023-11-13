@@ -282,35 +282,47 @@ class DataLeads:
 
     def _get_leads_from_brevo(self):
         print("\nGETTING DATA FROM NETING...")
-        urls = [os.getenv("brevo_url"), os.getenv("brevo_url_missing")]
         dataframe = pd.DataFrame()
-
-        #### WARNING: REMEMBER TO UPDATE LOOP WHEN CONTACTS EXCEED 500 ########
+        urls = [
+            f"https://api.brevo.com/v3/contacts/lists/4/contacts?limit=500",
+            f"https://api.brevo.com/v3/contacts/lists/17/contacts?limit=500",
+        ]
+        #######  CHANGE FROM HERE   ######
         for url_get in urls:
-            try:
-                resp = requests.get(
-                    url=url_get,  # type: ignore
-                    headers={
-                        "accept": "application/json",
-                        "api-key": os.getenv("brevo_api_key"),
-                    },  # type: ignore
-                    timeout=30,
-                )
-                # print(resp.status_code)
-                data = json.loads(resp.text)
-                # print(len(data["contacts"]))
+            page = 0
+            while True:
+                try:
+                    url_get_final = url_get + f"&offset={page}"
+                    # print(url_get)
+                    resp = requests.get(
+                        url=url_get_final,  # type: ignore
+                        headers={
+                            "accept": "application/json",
+                            "api-key": os.getenv("brevo_api_key"),
+                        },  # type: ignore
+                        timeout=30,
+                    )
+                    # print(resp.status_code)
+                    data = json.loads(resp.text)
+                    # print(data)
+                    # print(len(data["contacts"]))
 
-                if isinstance(url_get, str):
-                    pass
-                else:
-                    raise ValueError("returned none value")
+                    if len(data["contacts"]) == 0:
+                        break
 
-                data = self._brevo_data_pre_processing(data, url_get)
-                dataframe = pd.concat([dataframe, data])
-                # print(f"{os.getenv('brevo_url')}: {dataframe.shape}")
+                    page += 500
 
-            except ApiException as err:
-                print(f"Exception when calling get_contacts_from_list: {err}\n")
+                    if isinstance(url_get, str):
+                        pass
+                    else:
+                        raise ValueError("returned none value")
+
+                    data = self._brevo_data_pre_processing(data, url_get)
+                    dataframe = pd.concat([dataframe, data])
+                    # print(f"{os.getenv('brevo_url')}: {dataframe.shape}")
+
+                except ApiException as err:
+                    print(f"Exception when calling get_contacts_from_list: {err}\n")
 
         print(f"NETING dataframe: {dataframe.shape}")
         to_check = dataframe.sort_index()
