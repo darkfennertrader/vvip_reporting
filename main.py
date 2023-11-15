@@ -868,14 +868,14 @@ def leads():
             + total_by_col["Subscribed"]
         )
         / total_by_col.sum()
-        * 100
+        * 100e
     )
     print(f"\nRedemption: {redemption:.2f}%")
 
 
 if __name__ == "__main__":
-    # DataLeads()
-    send_email_to_recipients()
+    DataLeads()
+    # send_email_to_recipients()
 
     # Lead Stats
     # leads()
