@@ -22,6 +22,7 @@ TO_ITERA = "e.veneziani@iteradigital.com"
 TO_NETING = "m.talentinis.neting.it"
 TO_SALES = "leotta@formulacoach.it"
 TO_TELEMKTG = "viniero@formulacoach.it"
+TO_TELEMKTG2 = "comellini@goldengroup.biz"
 TO_FORMULA_COACH = "decotiis@formulacoach.it"
 SUBJECT = "VirtualVIP RCT sheet update: " + str(datetime.now().date())
 
@@ -64,7 +65,7 @@ def send_email_to_recipients():
     sales_file = "sales" + "_" + str(datetime.now().date()) + ".xlsx"
     # print(sales_file)
     # print(sales_path)
-    recipients = [TO_ME, TO_SALES, TO_TELEMKTG]
+    recipients = [TO_ME, TO_SALES, TO_TELEMKTG, TO_TELEMKTG2]
     # recipients = [TO_ME]  # for testing
 
     content = """
