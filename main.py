@@ -868,7 +868,7 @@ def leads():
             + total_by_col["Subscribed"]
         )
         / total_by_col.sum()
-        * 100e
+        * 100
     )
     print(f"\nRedemption: {redemption:.2f}%")
 
