@@ -332,6 +332,10 @@ class DataLeads:
             print()
             # delete duplicated users from "Leads with missing data" Id: 17
             contacts_to_del = list(to_check[to_check.index.duplicated()].index)
+
+            if len(contacts_to_del) > 150:
+                raise ValueError("too many contacts to delete at once !!!")
+
             # print(contacts_to_del)
             del_url = "https://api.brevo.com/v3/contacts/lists/17/contacts/remove"
 
