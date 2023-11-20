@@ -330,7 +330,23 @@ class DataLeads:
             print("WARNING DUPLICATED RECORDS IN NETING LISTS")
             print(to_check[to_check.index.duplicated()])
             print()
-            raise ValueError("NETING data contain duplicated emails !!!")
+            # delete duplicated users from "Leads with missing data" Id: 17
+            contacts_to_del = list(to_check[to_check.index.duplicated()].index)
+            # print(contacts_to_del)
+            del_url = "https://api.brevo.com/v3/contacts/lists/17/contacts/remove"
+
+            payload = {"emails": contacts_to_del}
+            headers = {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "api-key": os.getenv("brevo_api_key"),
+            }
+
+            response = requests.post(del_url, json=payload, headers=headers, timeout=20)
+            print(response.text)
+            print("Duplicated contacs were removed from Id list: 17!!!")
+
+            # raise ValueError("NETING data contain duplicated emails !!!")
 
         print(dataframe.head())
         print()
