@@ -350,6 +350,9 @@ class DataLeads:
             print(response.text)
             print("Duplicated contacs were removed from Id list: 17!!!")
 
+            # removing duplicated records from NETING dataframe
+            dataframe.drop(index=contacts_to_del, inplace=True)
+
             # raise ValueError("NETING data contain duplicated emails !!!")
 
         print(dataframe.head())
