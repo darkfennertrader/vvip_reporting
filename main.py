@@ -902,3 +902,5 @@ if __name__ == "__main__":
 
     # Lead Stats
     # leads()
+
+    ### T.B.I.: (1) automazione promo, (2) aggiunta di contatto fake ogni 500 per Brevo (per bug del sistema), (3): numero contatti maggiore di 100 per Active Campaign
