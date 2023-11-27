@@ -1,8 +1,13 @@
 import os
 import json
-import requests
-from sib_api_v3_sdk.rest import ApiException
+import asyncio
+from pprint import pprint
+import boto3
+import aiohttp
+from aiohttp import ClientError
 import pandas as pd
+from faker import Faker
+
 from dotenv import load_dotenv
 
 
@@ -10,155 +15,93 @@ load_dotenv()
 
 
 brevo_api = os.getenv("brevo_api_key")
+client_id = os.getenv("uat_client_id")
+username = os.getenv("username")
+password = os.getenv("password")
+URL = "https://uat.virtualvip.club/api"
+PROMO_URL = URL + "/payment/promo"
 
 
-# # create list
-
-# url = "https://api.brevo.com/v3/contacts/lists"
-
-# headers = {
-#     "accept": "application/json",
-#     "content-type": "application/json",
-#     "api-key": brevo_api,
-# }
-# payload = {"name": "prova", "folderId": 9}
-# try:
-#     response = requests.post(url, json=payload, headers=headers, timeout=30)
-# except ApiException as err:
-#     print(f"Exception when calling get_contacts_from_list: {err}\n")
+def generate_random_email():
+    dummy = Faker()
+    return dummy.email()
 
 
-# print(response.text)
+emails_list = []
+for _ in range(2000):
+    emails_list.append(generate_random_email())
+
+# print(emails_list)
 
 
-# update attribute of multiple contacts
+def _authenticate() -> str:
+    print("\nVirtualVIP Backoffice update PROMO")
+    print("*" * 40)
+    client = boto3.client("cognito-idp", region_name="eu-west-1")
 
-# url = "https://api.brevo.com/v3/contacts/batch"
-# headers = {
-#     "accept": "application/json",
-#     "content-type": "application/json",
-#     "api-key": "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",
-# }
-
-# payload = {
-#     "contacts": [
-#         {"attributes": {"Channel": "prova2"}, "email": "virtualvip@formulacoach.it"},
-#         # {"attributes": {"Channel": "pippo"}, "email": "rai_marino@hotmail.com"},
-#     ]
-# }
-
-# try:
-#     response = requests.post(url, json=payload, headers=headers)
-
-#     if response.status_code == 204:
-#         print("\n CONTACTS UPDATED\n")
-#     elif response.status_code == 404:
-#         print("\nERROR: some email(s) is/are not correct\n")
-
-# except ApiException as err:
-#     print(f"Exception when calling update multiple contacts: {err}\n")
-
-
-dataframe = pd.DataFrame()
-
-page = 0
-overall_contacts = []
-while True:
-    # print(page)
-    url_get = (
-        f"https://api.brevo.com/v3/contacts/lists/4/contacts?limit=500&offset={page}"
+    # Initiating the Authentication,
+    response = client.initiate_auth(
+        ClientId=client_id,
+        AuthFlow="USER_PASSWORD_AUTH",
+        AuthParameters={
+            "USERNAME": username,
+            "PASSWORD": password,
+        },
     )
+
+    return response["AuthenticationResult"]["IdToken"]
+
+
+id_token = _authenticate()
+
+headers = {"Authorization": f"Bearer {id_token}"}
+
+
+async def update_contact(session, emails):
+    list_to_update = []
+    for email in emails:
+        json_contact = {
+            "email": email,
+            "type": "business",
+            "promo": "promo6030",
+            "duration": "",
+        }
+
+        list_to_update.append(json_contact)
+
+    json_data = {"request": list_to_update}
+    # print()
+    # pprint(json_data, indent=2)
+
     try:
-        print(url_get)
-        resp = requests.get(
-            url=url_get,  # type: ignore
-            headers={
-                "accept": "application/json",
-                "api-key": os.getenv("brevo_api_key"),
-            },  # type: ignore
-            timeout=30,
-        )
-        # print(resp.status_code)
-        data = json.loads(resp.text)
-        print(len(data["contacts"]))
-        overall_contacts.extend(data["contacts"])
+        async with session.put(PROMO_URL, json=json_data, headers=headers) as response:
+            # You might want to check for other status codes here too
+            if response.status == 429:  # Too Many Requests / Rate Limited
+                print(f"Rate limit hit when updating: {list_to_update}. Retrying...")
+                await asyncio.sleep(1)  # Wait for a second before retrying
+                return await update_contact(session, emails)
 
-        # if page % 167 == 0:
-        #     print(data["contacts"])
+            if response.headers.get("Content-Type") == "application/json":
+                response_data = await response.json()
+            else:
+                response_data = await response.text()
 
-        if len(data["contacts"]) == 0:
-            break
+            return response_data, response.status
 
-        page += 500
-        if isinstance(url_get, str):
-            pass
-        else:
-            raise ValueError("returned none value")
-
-    except ApiException as err:
-        print(f"Exception when calling get_contacts_from_list: {err}\n")
-
-print(len(overall_contacts))
+    except ClientError as e:
+        print(f"Network error occurred: {e}")
+        return {"error": "Network error occurred"}, 500  # Example error response
 
 
-# customer_list = []
-# for elem in data["contacts"]:
-#     elem["attributes"]["Email"] = elem["email"]
-#     customer_list.append(elem["attributes"])
+async def update_contacts(emails: list[str]):
+    async with aiohttp.ClientSession() as session:
+        # print(type(session))
+        # tasks = [update_contact(session, email) for email in emails]
+        tasks = [update_contact(session, emails)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return results
 
-# # print(pd.DataFrame(customer_list))
-# dataframe = pd.DataFrame(customer_list)
 
-# dataframe = dataframe[~dataframe["Email"].str.contains("formulacoach.it")]
-# dataframe = dataframe[~dataframe["Email"].str.contains("neting.it")]
-
-# # selecting a subset of columns:
-# dataframe = dataframe[
-#     [
-#         "FIRSTNAME",
-#         "LASTNAME",
-#         "Email",
-#         "TELEFONO",
-#         "QUALIFICA",
-#         "ATECO",
-#         "IMPRESA",
-#         "FORMAZIONE",
-#         "TIPO_FORMAZIONE",
-#         "ANNI_FORMAZIONE_AZIENDA",
-#         "PENSIERO_SU_AI",
-#     ]
-# ]
-
-# # renaming columns
-# dataframe.rename(
-#     columns={
-#         "FIRSTNAME": "Nome",
-#         "LASTNAME": "Cognome",
-#         "TELEFONO": "Telefono",
-#         "QUALIFICA": "Qualifica",
-#         "ATECO": "Settore",
-#         "IMPRESA": "Impresa",
-#         "FORMAZIONE": "Formazione",
-#         "TIPO_FORMAZIONE": "Domanda1",
-#         "ANNI_FORMAZIONE_AZIENDA": "Domanda2",
-#         "PENSIERO_SU_AI": "Domanda3",
-#     },
-#     inplace=True,
-# )
-
-# if list_url == os.getenv("brevo_url"):
-#     dataframe["Form"] = "complete"
-# elif list_url == os.getenv("brevo_url_missing"):
-#     dataframe["Form"] = "missing"
-
-# dataframe["Agency"] = "neting"
-# dataframe["RCT_group"] = "Business_Sales"
-
-# # print(dataframe.head())
-
-# dataframe.drop(
-#     columns=["CHANNEL", "STATUS"], axis=1, errors="ignore", inplace=True
-# )
-
-# dataframe.set_index("Email", inplace=True)
-# # print(dataframe.columns)
+# Run the main coroutine
+result = asyncio.run(update_contacts(emails_list))
+print("\n", result[0])

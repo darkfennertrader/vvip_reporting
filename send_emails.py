@@ -65,7 +65,7 @@ def send_email_to_recipients():
     sales_file = "sales" + "_" + str(datetime.now().date()) + ".xlsx"
     # print(sales_file)
     # print(sales_path)
-    recipients = [TO_ME, TO_SALES, TO_TELEMKTG, TO_TELEMKTG2]
+    recipients = [TO_ME, TO_SALES, TO_TELEMKTG, TO_TELEMKTG2, TO_JACOPO]
     # recipients = [TO_ME]  # for testing
 
     content = """

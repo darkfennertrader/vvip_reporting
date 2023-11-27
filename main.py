@@ -4,9 +4,12 @@ from typing import Any
 from datetime import datetime
 import collections
 from pprint import pprint
+import asyncio
 import pandas as pd
 import numpy as np
 from sib_api_v3_sdk.rest import ApiException
+import aiohttp
+from aiohttp import ClientError
 import requests
 import boto3
 
@@ -15,6 +18,55 @@ from send_emails import send_email_to_recipients
 
 
 load_dotenv()
+
+
+async def update_contact(
+    id_token: str, session: aiohttp.client.ClientSession, emails: list[str]
+):
+    # update backoffice asynchronously
+    promo_url = os.getenv("uat_url") + os.getenv("promo_url")
+    headers = {"Authorization": f"Bearer {id_token}"}
+
+    list_to_update = []
+    for email in emails:
+        json_contact = {
+            "email": email,
+            "type": "business",
+            "promo": "promo6030",
+            "duration": "",
+        }
+
+        list_to_update.append(json_contact)
+
+    json_data = {"request": list_to_update}
+    # print()
+    # pprint(json_data, indent=2)
+
+    try:
+        async with session.put(promo_url, json=json_data, headers=headers) as response:
+            # You might want to check for other status codes here too
+            if response.status == 429:  # Too Many Requests / Rate Limited
+                print(f"Rate limit hit when updating: {list_to_update}. Retrying...")
+                await asyncio.sleep(1)  # Wait for a second before retrying
+                return await update_contact(id_token, session, emails)
+
+            if response.headers.get("Content-Type") == "application/json":
+                response_data = await response.json()
+            else:
+                response_data = await response.text()
+
+            return response_data, response.status
+
+    except ClientError as e:
+        print(f"Network error occurred: {e}")
+        return {"error": "Network error occurred"}, 500  # Example error response
+
+
+async def update_contacts(id_token: str, emails: list[str]):
+    async with aiohttp.ClientSession() as session:
+        tasks = [update_contact(id_token, session, emails)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return results
 
 
 class DataLeads:
@@ -30,6 +82,7 @@ class DataLeads:
         self.get_url = os.getenv("get_url")
         self.post_url = os.getenv("post_url")
         self.client_id = os.getenv("prod_client_id")
+        self.uat_client_id = os.getenv("uat_client_id")
         self.username = os.getenv("username")
         self.password = os.getenv("password")
         self.url = os.getenv("prod_url")
@@ -47,20 +100,23 @@ class DataLeads:
         final_dataset = self._get_vvip_reporting(overall)
 
         # # #########   UPDATE Campaigns   ########
-        self._update_neting(final_dataset)
-        self._update_itera(final_dataset)
+        # self._update_neting(final_dataset)
+        # self._update_itera(final_dataset)
+
+        ############# UPDATE PROMO   ##############
+        self._update_backoffice(final_dataset)
 
         # ########   Generate Reporting   ########
-        report = self._output_reports(final_dataset)
+        # report = self._output_reports(final_dataset)
 
-    def _authenticate(self) -> str:
+    def _authenticate(self, client_id) -> str:
         print("\nVirtualVIP Backoffice data")
         print("*" * 30)
         client = boto3.client("cognito-idp", region_name="eu-west-1")
 
         # Initiating the Authentication,
         response = client.initiate_auth(
-            ClientId=self.client_id,
+            ClientId=client_id,
             AuthFlow="USER_PASSWORD_AUTH",
             AuthParameters={
                 "USERNAME": self.username,
@@ -452,7 +508,7 @@ class DataLeads:
         return overall
 
     def _get_vvip_reporting(self, overall):
-        id_token = self._authenticate()
+        id_token = self._authenticate(self.client_id)
         vvip_data = self._get_vvip_data(id_token)
 
         idx_overall = overall.index
@@ -788,6 +844,26 @@ class DataLeads:
                     print("\nERROR: some email(s) is/are not correct\n")
             except ApiException as err:
                 print(f"Exception when update multiple contacts: {err}\n")
+
+    def _update_backoffice(self, data: pd.DataFrame) -> None:
+        # read old_customers
+        old_cust = pd.read_csv("./output/customers.csv", index_col=["Email"])
+        print()
+        old_cust.sort_index(inplace=True)
+        idx_diff = data.index.difference(old_cust.index)
+
+        # print("\nNEW LEADS:")
+        # new_leads = data.loc[idx_diff]
+        # new_leads_list = list(new_leads.index)
+        # print(new_leads_list)
+        leads_list = list(old_cust.index)
+        print(len(leads_list))
+
+        id_token = self._authenticate(self.uat_client_id)
+        # Run the main coroutine to update contacts
+        result = asyncio.run(update_contacts(id_token, leads_list))
+
+        print(f"\nResponse from update backoffice: {result}")
 
     def _output_reports(self, data: pd.DataFrame) -> pd.DataFrame:
         print("\nGENERATING REPORTING")
