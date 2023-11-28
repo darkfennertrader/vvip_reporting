@@ -100,14 +100,14 @@ class DataLeads:
         final_dataset = self._get_vvip_reporting(overall)
 
         # # #########   UPDATE Campaigns   ########
-        # self._update_neting(final_dataset)
-        # self._update_itera(final_dataset)
+        self._update_neting(final_dataset)
+        self._update_itera(final_dataset)
 
         ############# UPDATE PROMO   ##############
-        self._update_backoffice(final_dataset)
+        # self._update_backoffice(final_dataset)
 
         # ########   Generate Reporting   ########
-        # report = self._output_reports(final_dataset)
+        report = self._output_reports(final_dataset)
 
     def _authenticate(self, client_id) -> str:
         print("\nVirtualVIP Backoffice data")
@@ -361,7 +361,7 @@ class DataLeads:
                     # print(resp.status_code)
                     data = json.loads(resp.text)
                     # print(data)
-                    # print(len(data["contacts"]))
+                    print(len(data["contacts"]))
 
                     if len(data["contacts"]) == 0:
                         break
@@ -388,6 +388,7 @@ class DataLeads:
             print()
             # delete duplicated users from "Leads with missing data" Id: 17
             contacts_to_del = list(to_check[to_check.index.duplicated()].index)
+            print(contacts_to_del)
 
             if len(contacts_to_del) > 150:
                 raise ValueError("too many contacts to delete at once !!!")
@@ -431,6 +432,9 @@ class DataLeads:
 
         dataframe = dataframe[~dataframe["Email"].str.contains("formulacoach.it")]
         dataframe = dataframe[~dataframe["Email"].str.contains("neting.it")]
+
+        # # this is necessary to fill in the field "FORMAZIONE" to prevent bug
+        # print(dataframe.iloc[0])
 
         # selecting a subset of columns:
         dataframe = dataframe[
@@ -979,4 +983,4 @@ if __name__ == "__main__":
     # Lead Stats
     # leads()
 
-    ### T.B.I.: (1) automazione promo, (2) aggiunta di contatto fake ogni 500 per Brevo (per bug del sistema), (3): numero contatti maggiore di 100 per Active Campaign, (4): mandare in asincrono gli aggiornamenti su Itera
+    ### T.B.I.: (1) aggiunta di contatto fake ogni 500 per Brevo (per bug del sistema), (2): numero contatti maggiore di 100 per Active Campaign, (3): mandare in asincrono gli aggiornamenti su Itera
