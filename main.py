@@ -104,7 +104,7 @@ class DataLeads:
         self._update_itera(final_dataset)
 
         ############# UPDATE PROMO   ##############
-        # self._update_backoffice(final_dataset)
+        self._update_backoffice(final_dataset)
 
         # ########   Generate Reporting   ########
         report = self._output_reports(final_dataset)
@@ -856,16 +856,18 @@ class DataLeads:
         old_cust.sort_index(inplace=True)
         idx_diff = data.index.difference(old_cust.index)
 
-        # print("\nNEW LEADS:")
-        # new_leads = data.loc[idx_diff]
-        # new_leads_list = list(new_leads.index)
-        # print(new_leads_list)
-        leads_list = list(old_cust.index)
-        print(len(leads_list))
+        print("\nNEW LEADS:")
+        new_leads = data.loc[idx_diff]
+        new_leads_list = list(new_leads.index)
+        print(new_leads_list)
+        print(f"updated promo for {len(new_leads_list)} new contacts")
+
+        # leads_list = list(old_cust.index)
+        # print(len(leads_list))
 
         id_token = self._authenticate(self.uat_client_id)
         # Run the main coroutine to update contacts
-        result = asyncio.run(update_contacts(id_token, leads_list))
+        result = asyncio.run(update_contacts(id_token, new_leads_list))
 
         print(f"\nResponse from update backoffice: {result}")
 
