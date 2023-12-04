@@ -24,7 +24,7 @@ async def update_contact(
     id_token: str, session: aiohttp.client.ClientSession, emails: list[str]
 ):
     # update backoffice asynchronously
-    promo_url = os.getenv("uat_url") + os.getenv("promo_url")
+    promo_url = os.getenv("prod_url") + os.getenv("promo_url")
     headers = {"Authorization": f"Bearer {id_token}"}
 
     list_to_update = []
@@ -433,7 +433,7 @@ class DataLeads:
         dataframe = dataframe[~dataframe["Email"].str.contains("formulacoach.it")]
         dataframe = dataframe[~dataframe["Email"].str.contains("neting.it")]
 
-        # # this is necessary to fill in the field "FORMAZIONE" to prevent bug
+        # # TO BE FIXED (uncomment the following line) this is necessary to fill in the field "FORMAZIONE" to prevent bug
         # print(dataframe.iloc[0])
 
         # selecting a subset of columns:
@@ -865,9 +865,12 @@ class DataLeads:
         # leads_list = list(old_cust.index)
         # print(len(leads_list))
 
-        id_token = self._authenticate(self.uat_client_id)
+        overall_list = list(data.index)
+        print(f"updated: {len(data.index)} contacts")
+
+        id_token = self._authenticate(self.client_id)
         # Run the main coroutine to update contacts
-        result = asyncio.run(update_contacts(id_token, new_leads_list))
+        result = asyncio.run(update_contacts(id_token, overall_list))
 
         print(f"\nResponse from update backoffice: {result}")
 
