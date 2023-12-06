@@ -862,15 +862,13 @@ class DataLeads:
         print(new_leads_list)
         print(f"updated promo for {len(new_leads_list)} new contacts")
 
-        # leads_list = list(old_cust.index)
-        # print(len(leads_list))
-
-        overall_list = list(data.index)
-        print(f"updated: {len(data.index)} contacts")
+        # uncomment these lines to update all the contacts at once
+        # overall_list = list(data.index)
+        # print(f"updated: {len(data.index)} contacts")
 
         id_token = self._authenticate(self.client_id)
         # Run the main coroutine to update contacts
-        result = asyncio.run(update_contacts(id_token, overall_list))
+        result = asyncio.run(update_contacts(id_token, new_leads_list))
 
         print(f"\nResponse from update backoffice: {result}")
 
