@@ -306,6 +306,7 @@ class DataLeads:
         )
         data["Agency"] = "itera"
         data["RCT_group"] = "Business_Sales"
+        # data["Lead_Origin"] = "Linkedin"
 
         data.drop(
             columns=["SALES_CHANNEL", "LEAD_STATUS"],
@@ -329,6 +330,7 @@ class DataLeads:
                 "Form",
                 "Agency",
                 "RCT_group",
+                # "Lead_Origin",
             ]
         ]
         print(data.head(30))
@@ -433,8 +435,10 @@ class DataLeads:
         dataframe = dataframe[~dataframe["Email"].str.contains("formulacoach.it")]
         dataframe = dataframe[~dataframe["Email"].str.contains("neting.it")]
 
+        #######################################################################
         # # TO BE FIXED (uncomment the following line) this is necessary to fill in the field "FORMAZIONE" to prevent bug
         # print(dataframe.iloc[0])
+        ######################################################################
 
         # selecting a subset of columns:
         dataframe = dataframe[
@@ -450,6 +454,7 @@ class DataLeads:
                 "TIPO_FORMAZIONE",
                 "ANNI_FORMAZIONE_AZIENDA",
                 "PENSIERO_SU_AI",
+                "LEAD_ORIGIN",  # modifica
             ]
         ]
 
@@ -466,6 +471,7 @@ class DataLeads:
                 "TIPO_FORMAZIONE": "Domanda1",
                 "ANNI_FORMAZIONE_AZIENDA": "Domanda2",
                 "PENSIERO_SU_AI": "Domanda3",
+                "LEAD_ORIGIN": "Lead_Origin",  # modifica
             },
             inplace=True,
         )
