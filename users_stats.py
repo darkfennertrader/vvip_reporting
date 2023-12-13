@@ -39,9 +39,10 @@ def _authenticate(client_id) -> str:
 
 
 # string to add to the GET
-"mailList=darkfenner69@gmail.com,virtual.vip21333334@yopmail.com"
-
-url = URL + "darkfenner69@gmail.com"
+# "mailList=darkfenner69@gmail.com,virtual.vip21333334@yopmail.com"
+EMAILS = "vvipuser41+microtest@gmail.com,vvipuser41+testername@gmail.com,vvipuser41+test_pay_1@gmail.com"
+EMAILS = "pe3.job@gmail.com"
+url = URL + EMAILS
 
 
 def get_users_stats():

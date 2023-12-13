@@ -436,7 +436,7 @@ class DataLeads:
         dataframe = dataframe[~dataframe["Email"].str.contains("neting.it")]
 
         #######################################################################
-        # # TO BE FIXED (uncomment the following line) this is necessary to fill in the field "FORMAZIONE" to prevent bug
+        # # TO BE FIXED (uncomment the following line) this is necessary to fill in the field "whatever" to prevent bug
         # print(dataframe.iloc[0])
         ######################################################################
 
