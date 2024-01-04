@@ -399,18 +399,39 @@ class DataLeads:
             contacts_to_del = list(to_check[to_check.index.duplicated()].index)
             print(contacts_to_del)
 
-            sublists = contacts_to_del
             if len(contacts_to_del) > 150:
                 pprint(
                     "\nWARNING:too many contacts to delete at once. the list is split into sublist !!!"
                 )
                 sublists = split_into_sublists(contacts_to_del)
 
-            for sublist in sublists:
-                # print(contacts_to_del)
+                for sublist in sublists:
+                    # print(contacts_to_del)
+                    del_url = (
+                        "https://api.brevo.com/v3/contacts/lists/17/contacts/remove"
+                    )
+
+                    payload = {"emails": sublist}
+                    headers = {
+                        "accept": "application/json",
+                        "content-type": "application/json",
+                        "api-key": os.getenv("brevo_api_key"),
+                    }
+
+                    response = requests.post(
+                        del_url, json=payload, headers=headers, timeout=20
+                    )
+                    print(response.text)
+                    print("Duplicated contacs were removed from Id list: 17!!!")
+
+                    # removing duplicated records from NETING dataframe
+                    dataframe.drop(index=sublist, inplace=True)
+
+                    # raise ValueError("NETING data contain duplicated emails !!!")
+            else:
                 del_url = "https://api.brevo.com/v3/contacts/lists/17/contacts/remove"
 
-                payload = {"emails": sublist}
+                payload = {"emails": contacts_to_del}
                 headers = {
                     "accept": "application/json",
                     "content-type": "application/json",
@@ -424,7 +445,7 @@ class DataLeads:
                 print("Duplicated contacs were removed from Id list: 17!!!")
 
                 # removing duplicated records from NETING dataframe
-                dataframe.drop(index=sublist, inplace=True)
+                dataframe.drop(index=contacts_to_del, inplace=True)
 
                 # raise ValueError("NETING data contain duplicated emails !!!")
 
@@ -451,7 +472,7 @@ class DataLeads:
 
         #######################################################################
         # # TO BE FIXED (uncomment the following line) this is necessary to fill in the field "whatever" to prevent bug
-        print(dataframe.iloc[0])
+        # print(dataframe.iloc[0])
         ######################################################################
 
         # selecting a subset of columns:
@@ -1000,8 +1021,8 @@ def leads():
 
 
 if __name__ == "__main__":
-    # DataLeads()
-    send_email_to_recipients()
+    DataLeads()
+    # send_email_to_recipients()
 
     # Lead Stats
     # leads()
