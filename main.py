@@ -320,8 +320,8 @@ class DataLeads:
                 print(
                     "WARNING: duplicated records were deleted considering list priority"
                 )
-                # print(to_check[to_check.index.duplicated()])
-                df_reset = to_check.reset_index()
+                # changed from to_check to overall to mantain order from lists
+                df_reset = overall.reset_index()
                 # print("\nbefore removing:")
                 # print(df_reset.head(15))
                 # print(df_reset.shape)
@@ -1078,8 +1078,8 @@ def leads():
 
 
 if __name__ == "__main__":
-    DataLeads()
-    # send_email_to_recipients()
+    # # DataLeads()
+    send_email_to_recipients()
 
     # Lead Stats
     # leads()

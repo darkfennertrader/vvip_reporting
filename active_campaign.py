@@ -24,9 +24,9 @@ def _get_leads_from_active():
             # print(f"{field['id']}: {field['perstag']}")
             custom_fields[field["id"]] = field["perstag"]
 
-        # save custom fields for later contacts update
-        with open("./data/itera_custom_fields.json", "w") as file:
-            json.dump(custom_fields, file)
+        # # save custom fields for later contacts update
+        # with open("./data/itera_custom_fields.json", "w") as file:
+        #     json.dump(custom_fields, file)
 
         # download contacts from list
         # url = "https://virtualvip.api-us1.com/api/3/contacts?listid=1"
@@ -142,16 +142,16 @@ def _get_leads_from_active():
         # print(list(_l))
         # print(len(_l))
 
-        # save IteraContacts as JSON file
-        with open(os.getenv("itera_contacts_missing"), "w") as file:  #    type: ignore
-            json.dump(_l, file)
+        # # save IteraContacts as JSON file
+        # with open(os.getenv("itera_contacts_missing"), "w") as file:  #    type: ignore
+        #     json.dump(_l, file)
 
         # print(overall)
         to_check = overall.sort_index()
         if to_check.index.has_duplicates:
             print("WARNING: duplicated records were deleted considering list priority")
             # print(to_check[to_check.index.duplicated()])
-            df_reset = to_check.reset_index()
+            df_reset = overall.reset_index()
             print("\nbefore removing:")
             print(df_reset.head(15))
             print(df_reset.shape)
@@ -164,9 +164,9 @@ def _get_leads_from_active():
             # contacts_to_del = list(to_check[to_check.index.duplicated()].index)
             # overall.drop_duplicates(index=contacts_to_del, inplace=True, keep="last")
 
-        to_save = overall[["SALES_CHANNEL"]]
-        # for later use when updating Customer Contacts
-        to_save.to_csv(os.getenv("itera_customers_missing"))
+        # to_save = overall[["SALES_CHANNEL"]]
+        # # for later use when updating Customer Contacts
+        # to_save.to_csv(os.getenv("itera_customers_missing"))
 
         return overall
 
