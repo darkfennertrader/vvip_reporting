@@ -1078,8 +1078,8 @@ def leads():
 
 
 if __name__ == "__main__":
-    # # DataLeads()
-    send_email_to_recipients()
+    DataLeads()
+    # send_email_to_recipients()
 
     # Lead Stats
     # leads()
