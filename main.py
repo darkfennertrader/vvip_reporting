@@ -510,14 +510,50 @@ class DataLeads:
     def _brevo_data_pre_processing(self, data: Any, list_url: str):
         # print("BREVO PREPROCESSING")
         # pprint(data, indent=2)
+        # print()
         # pprint(data["contacts"])
+        # with open("contacts.json", 'w') as file:
+        #     json.dump(data["contacts"], file, indent=4)
+        #####################################################
+        required_keys = [
+            "FIRSTNAME",
+            "LASTNAME",
+            "Email",
+            "TELEFONO",
+            "QUALIFICA",
+            "ATECO",
+            "IMPRESA",
+            "FORMAZIONE",
+            "TIPO_FORMAZIONE",
+            "ANNI_FORMAZIONE_AZIENDA",
+            "PENSIERO_SU_AI",
+            "LEAD_ORIGIN",
+            "TIPOLOGIA",
+            "PARTITA_IVA"
+            ### add HERE new fields ###
+        ]
+
+        # Populate customer_list with dictionaries, ensuring all required keys are present (BREVO bug workaround)
         customer_list = []
         for elem in data["contacts"]:
-            elem["attributes"]["Email"] = elem["email"]
-            customer_list.append(elem["attributes"])
+            # Make sure the "attributes" dictionary is available
+            attributes = elem.get("attributes", {})
+            # Copy the "email" to the "Email" field in "attributes"
+            attributes["Email"] = elem.get("email", None)
+            # Ensure all required fields exist, default to None if they are not present
+            customer_dict = {key: attributes.get(key, None) for key in required_keys}
+            customer_list.append(customer_dict)
 
-        # print(pd.DataFrame(customer_list))
+        # Create dataframe with all required columns
         dataframe = pd.DataFrame(customer_list)
+        ####################################################################
+        # customer_list = []
+        # for elem in data["contacts"]:
+        #     elem["attributes"]["Email"] = elem["email"]
+        #     customer_list.append(elem["attributes"])
+
+        # # print(pd.DataFrame(customer_list))
+        # dataframe = pd.DataFrame(customer_list)
 
         dataframe = dataframe[~dataframe["Email"].str.contains("formulacoach.it")]
         dataframe = dataframe[~dataframe["Email"].str.contains("neting.it")]
@@ -528,22 +564,7 @@ class DataLeads:
         ######################################################################
 
         # selecting a subset of columns:
-        dataframe = dataframe[
-            [
-                "FIRSTNAME",
-                "LASTNAME",
-                "Email",
-                "TELEFONO",
-                "QUALIFICA",
-                "ATECO",
-                "IMPRESA",
-                "FORMAZIONE",
-                "TIPO_FORMAZIONE",
-                "ANNI_FORMAZIONE_AZIENDA",
-                "PENSIERO_SU_AI",
-                "LEAD_ORIGIN",  # modifica
-            ]
-        ]
+        dataframe = dataframe[required_keys]
 
         # renaming columns
         dataframe.rename(
@@ -558,7 +579,10 @@ class DataLeads:
                 "TIPO_FORMAZIONE": "Domanda1",
                 "ANNI_FORMAZIONE_AZIENDA": "Domanda2",
                 "PENSIERO_SU_AI": "Domanda3",
-                "LEAD_ORIGIN": "Lead_Origin",  # modifica
+                "LEAD_ORIGIN": "Lead_Origin",
+                "TIPOLOGIA": "Tipologia",
+                "PARTITA_IVA": "Partita IVA"
+                ### add HERE new fields ###
             },
             inplace=True,
         )
