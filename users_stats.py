@@ -16,8 +16,15 @@ import boto3
 
 USERNAME = "darkfenner69@gmail.com"
 PASSWORD = "Pippo@45423"
+
+###############    DEV    ###################################
 CLIENT_ID = "1rmv00sd7o2qj1deda80gi4v15"
 URL = "https://byu1ehuf2i.execute-api.eu-west-1.amazonaws.com/sdlc/api/user-stats-email"
+
+################   UAT   ###########################
+
+CLIENT_ID = "4ekkk4f3u9uae70midfdqse4k6"
+URL = "https://49trqc7yl3.execute-api.eu-west-1.amazonaws.com/uat/api/user-stats-email"
 
 
 def _authenticate(client_id) -> str:
@@ -36,6 +43,7 @@ def _authenticate(client_id) -> str:
     )
 
     return response["AuthenticationResult"]["IdToken"]
+    # return response
 
 
 def get_users_stats():

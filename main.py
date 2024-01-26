@@ -1108,4 +1108,4 @@ if __name__ == "__main__":
     # Lead Stats
     # leads()
 
-    ### T.B.I.: (1) aggiunta di contatto fake ogni 500 per Brevo (per bug del sistema) (2): mandare in asincrono gli aggiornamenti su Itera
+    ### T.B.I.: (1): mandare in asincrono gli aggiornamenti su Itera
