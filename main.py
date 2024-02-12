@@ -196,7 +196,7 @@ class DataLeads:
             overall = pd.DataFrame()
             ids_list = []
 
-            # priority of lists:
+            # list priority:
             # list_id = 1: "VirtualVIP - all Leads"
             # list_id = 4: "VirtualVIP - WhatsApp"
             # list_id = 3: "VirtualVIP - Calendly Leads"
@@ -529,7 +529,7 @@ class DataLeads:
             "PENSIERO_SU_AI",
             "LEAD_ORIGIN",
             "TIPOLOGIA",
-            "PARTITA_IVA"
+            "PARTITA_IVA",
             ### add HERE new fields ###
         ]
 
@@ -581,7 +581,7 @@ class DataLeads:
                 "PENSIERO_SU_AI": "Domanda3",
                 "LEAD_ORIGIN": "Lead_Origin",
                 "TIPOLOGIA": "Tipologia",
-                "PARTITA_IVA": "Partita IVA"
+                "PARTITA_IVA": "Partita IVA",
                 ### add HERE new fields ###
             },
             inplace=True,
@@ -1108,4 +1108,4 @@ if __name__ == "__main__":
     # Lead Stats
     # leads()
 
-    ### T.B.I.: (1): mandare in asincrono gli aggiornamenti su Itera
+    ### T.B.I.: (1): mandare in asincrono gli aggiornamenti su Itera. filtro solo sugli attivi di Itera . Verificare se anche Neting ha il filtro attivi
