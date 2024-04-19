@@ -3,6 +3,7 @@
 /backup/*
 /channels/*
 /output/*
+/webinar_data/*
 /data/*
 /temp/*
 .env

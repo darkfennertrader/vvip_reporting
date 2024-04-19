@@ -27,6 +27,12 @@ CLIENT_ID = "4ekkk4f3u9uae70midfdqse4k6"
 URL = "https://49trqc7yl3.execute-api.eu-west-1.amazonaws.com/uat/api/user-stats-email"
 
 
+################   PROD   ###########################
+
+CLIENT_ID = "5j2ud20g3tv340ugdejnhuv42o"
+URL = "https://oaxqfw4wb7.execute-api.eu-west-1.amazonaws.com/prod/api/user-stats-email"
+
+
 def _authenticate(client_id) -> str:
     print("\nVirtualVIP Backoffice data")
     print("*" * 30)
@@ -57,7 +63,7 @@ def get_users_stats():
         json={"mailList": ["darkfenner69@gmail.com"]},
     )
 
-    print(resp.json())
+    pprint(resp.json())
 
 
 if __name__ == "__main__":
