@@ -35,6 +35,45 @@ URL = "https://49trqc7yl3.execute-api.eu-west-1.amazonaws.com/uat/api/user-stats
 CLIENT_ID = "5j2ud20g3tv340ugdejnhuv42o"
 URL = "https://oaxqfw4wb7.execute-api.eu-west-1.amazonaws.com/prod/api/user-stats-email"
 
+#####################################################
+
+
+def generate_user_data(num_users):
+    # Mean and standard deviation for Gaussian distribution
+    mean = 450
+    std_dev = 200
+
+    # Generate training points for each user using Gaussian distribution
+    np.random.seed(39)
+    training_points = np.random.normal(mean, std_dev, num_users)
+
+    # Clip training points to be between 0 and 1000
+    training_points = np.clip(training_points, 0, 1000).astype(int)
+
+    # Define correct answers based on the mapping of clipped training points from 0 to 1000 to 0 to 5
+    correct_answers_fractional = np.interp(training_points, [0, 1000], [0, 5])
+
+    # Initialize the dictionary
+    json_dict = {}
+
+    # Populate the dictionary with user data
+    for i in range(1, num_users + 1):
+        key = f"user{i}"
+        json_dict[key] = {
+            "user": {"Email": f"webinar{i}@mail.com"},
+            "stats": {
+                "trainingPoints": training_points[i - 1],
+                "correctAnswers": correct_answers_fractional[i - 1],
+            },
+        }
+
+    # Add a special message to the dictionary
+    json_dict["message"] = (
+        "This is a metadata or a special message and should not be accounted in the plot."
+    )
+
+    return json_dict
+
 
 def deduplicate_data(data):
     """_summary_ eliminate duplicated user sessions (now fixed bug)"""
@@ -83,11 +122,14 @@ def plot_training_points_histogram(data):
     fig, ax = plt.subplots(figsize=(36, 18))
 
     training_points = []
+    correct_answers = []
     zero_points_count = 0
     for key in data.keys():
         if key != "message":
             points = data[key].get("stats", {}).get("trainingPoints", 0)
+            answers = data[key].get("stats", {}).get("correctAnswers", 0)
             training_points.append(points)
+            correct_answers.append(answers)
             if points == 0:
                 zero_points_count += 1
 
@@ -124,16 +166,29 @@ def plot_training_points_histogram(data):
         bin_points = [
             points for j, points in enumerate(training_points) if digitized[j] - 1 == i
         ]
+        bin_answers = [
+            answers
+            for j, answers in enumerate(correct_answers)
+            if digitized[j] - 1 == i
+        ]
+
         absolute_number = f"Users: {len(bin_points)}"
         average_point = (
             f"Avg Points: {np.mean(bin_points):.0f}" if bin_points else "Avg Points: 0"
         )
+        average_correct_answers = (
+            f"Avg Correct Answers: {np.mean(bin_answers):.2f}"
+            if bin_answers
+            else "Avg Correct Answers: 0"
+        )
 
-        annotation = f"{percent}\n{absolute_number}\n{average_point}"
+        annotation = (
+            f"{percent}\n{absolute_number}\n{average_point}\n{average_correct_answers}"
+        )
         ax.annotate(
             annotation,
             (p.get_x() + p.get_width() / 2, height),
-            xytext=(0, 0),
+            xytext=(0, 13),
             textcoords="offset points",
             ha="center",
             fontsize=24,
@@ -144,17 +199,17 @@ def plot_training_points_histogram(data):
     ax.set_title("Training Points Distribution", fontsize=36, fontweight="bold")
     ax.set_xlabel("Points per Session", fontsize=28)
     ax.set_ylabel("Percentage", fontsize=28)
-    ax.set_ylim(0, max_height + 5)
+    ax.set_ylim(0, max_height + 10)
 
     ax.annotate(
-        f"Total Users: {total_users}\nZero Points: {zero_points_percent:.0f}%",
+        f"Total Users: {total_users}\nNo Session: {zero_points_percent:.0f}%",
         xy=(0.80, 0.85),
         fontsize=32,
         xycoords="axes fraction",
         bbox=dict(boxstyle="round", fc="white", ec="none"),
     )
 
-    plt.savefig("trial_stats_prod.jpeg")
+    plt.savefig("webinar_04_22_2024.jpeg")
 
     plt.show()
     plt.close()
@@ -194,106 +249,14 @@ def get_users_stats(email_list):
 
 
 if __name__ == "__main__":
-
-    PARTICIPANTS = 150
-
-    email_list = [f"webinar{number}@mail.com" for number in range(1, PARTICIPANTS + 1)]
-    # print(email_list[:5])
-
-    # email_list = [
-    #     "leonardo_1@mail.com",
-    #     "leonardo_2@mail.com",
-    #     "leonardo_3@mail.com",
-    #     "leonardo_4@mail.com",
-    #     "leonardo_5@mail.com",
-    #     "leonardo_6@mail.com",
-    #     "andrea_1@mail.com",
-    #     "andrea_2@mail.com",
-    #     "andrea_3@mail.com",
-    #     "andrea_4@mail.com",
-    #     "andrea_5@mail.com",
-    #     "andrea_6@mail.com",
-    #     "paolo_1@mail.com",
-    #     "paolo_2@mail.com",
-    #     "paolo_3@mail.com",
-    #     "paolo_4@mail.com",
-    #     "paolo_5@mail.com",
-    #     "paolo_6@mail.com",
-    #     "razvan_1@mail.com",
-    #     "razvan_2@mail.com",
-    #     "razvan_3@mail.com",
-    #     "razvan_4@mail.com",
-    #     "razvan_5@mail.com",
-    #     "razvan_6@mail.com",
-    #     "raimondo_1@mail.com",
-    #     "raimondo_2@mail.com",
-    #     "raimondo_3@mail.com",
-    #     "raimondo_4@mail.com",
-    #     "raimondo_5@mail.com",
-    #     "raimondo_6@mail.com",
-    #     "jacopo_1@mail.com",
-    #     "jacopo_2@mail.com",
-    #     "jacopo_3@mail.com",
-    #     "jacopo_4@mail.com",
-    #     "jacopo_5@mail.com",
-    #     "jacopo_6@mail.com",
-    # ]
-
+    ATTENDANCE = 75
     start_time = time()
-    json_list = get_users_stats(email_list)
-    json_list = deduplicate_data(json_list)
-    # pprint(json_list)
+    fake_data = generate_user_data(ATTENDANCE)
+    pprint(fake_data)
 
-    ranking = create_training_points_dataframe(json_list)
+    ranking = create_training_points_dataframe(fake_data)
     print()
     print(ranking)
     print(len(ranking))
     print(f"The process took {time() - start_time:.3f} sec.")
-    plot_training_points_histogram(json_list)
-
-
-# {'0': {'stats': {'badges': {'Activity': 'Grower',
-#                             'Atlantic Coin': None,
-#                             'Eloquence': None,
-#                             'Perfectionism': None,
-#                             'Sessions': 'Newbie',
-#                             'Top Performance': None},
-#                  'chattingTimeHours': 0,
-#                  'chattingTimeMinutes': 17,
-#                  'chattingTimeSeconds': 14,
-#                  'daysSinceLastSession': 0,
-#                  'lastUnlockedPath': 'general_be_effective',
-#                  'numberOfEarnedBadges': 3,
-#                  'numberOfUnlockedPaths': 1,
-#                  'sessionsCompleted': 3,
-#                  'sessionsDropped': 3,
-#                  'trainingPoints': 2368,
-#                  'trainingSessionLastDate': '2024-04-18 12:41:02'},
-#        'user': {'Email': 'leonardo_1@mail.com',
-#                 'Name': 'Test',
-#                 'Nickname': 'leonardo_1',
-#                 'Surname': 'test',
-#                 'Username': '34e82b05-8bef-4890-b70c-2992860963f9'}},
-#  '1': {'stats': {'badges': {'Activity': 'Newbie',
-#                             'Atlantic Coin': None,
-#                             'Eloquence': 'Grower',
-#                             'Perfectionism': None,
-#                             'Sessions': 'Grower',
-#                             'Top Performance': None},
-#                  'chattingTimeHours': 0,
-#                  'chattingTimeMinutes': 38,
-#                  'chattingTimeSeconds': 6,
-#                  'daysSinceLastSession': 0,
-#                  'lastUnlockedPath': 'be_proactive',
-#                  'numberOfEarnedBadges': 5,
-#                  'numberOfUnlockedPaths': 2,
-#                  'sessionsCompleted': 6,
-#                  'sessionsDropped': 0,
-#                  'trainingPoints': 3764,
-#                  'trainingSessionLastDate': '2024-04-18 12:41:03'},
-#        'user': {'Email': 'leonardo_2@mail.com',
-#                 'Name': 'Test',
-#                 'Nickname': 'leonardo_2',
-#                 'Surname': 'test',
-#                 'Username': '92ee88d2-8b51-44c2-b7ee-b5fbb3ec0ca6'}},
-#  'message': None}
+    plot_training_points_histogram(fake_data)
