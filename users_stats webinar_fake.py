@@ -202,7 +202,7 @@ def plot_training_points_histogram(data):
     ax.set_ylim(0, max_height + 10)
 
     ax.annotate(
-        f"Total Users: {total_users}\nNo Session: {zero_points_percent:.0f}%",
+        f"Total Users: {total_users}\nNull Sessions: {zero_points_percent:.0f}%",
         xy=(0.80, 0.85),
         fontsize=32,
         xycoords="axes fraction",
