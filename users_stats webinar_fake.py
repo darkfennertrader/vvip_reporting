@@ -249,7 +249,7 @@ def get_users_stats(email_list):
 
 
 if __name__ == "__main__":
-    ATTENDANCE = 75
+    ATTENDANCE = 22
     start_time = time()
     fake_data = generate_user_data(ATTENDANCE)
     pprint(fake_data)
