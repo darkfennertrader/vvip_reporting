@@ -32,8 +32,8 @@ URL = "https://49trqc7yl3.execute-api.eu-west-1.amazonaws.com/uat/api/user-stats
 
 ################   PROD   ###########################
 
-CLIENT_ID = "5j2ud20g3tv340ugdejnhuv42o"
-URL = "https://oaxqfw4wb7.execute-api.eu-west-1.amazonaws.com/prod/api/user-stats-email"
+# CLIENT_ID = "5j2ud20g3tv340ugdejnhuv42o"
+# URL = "https://oaxqfw4wb7.execute-api.eu-west-1.amazonaws.com/prod/api/user-stats-email"
 
 
 def deduplicate_data(data):
@@ -62,15 +62,15 @@ def create_training_points_dataframe(data):
         if key != "message":
             user_info = data[key]
             email = user_info["user"]["Email"]
-            points = user_info["stats"].get("trainingPoints", 0)
+            points = user_info["stats"].get("lastSessionPoints", 0)
             training_points_data.append((email, points))
 
-    df = pd.DataFrame(training_points_data, columns=["Email", "Training Points"])
+    df = pd.DataFrame(training_points_data, columns=["Email", "Last Session Points"])
     df.set_index("Email", inplace=True)
     # df.sort_index(inplace=True)
 
     # Sort the DataFrame by 'Training Points' column in descending order
-    df.sort_values(by="Training Points", ascending=False, inplace=True)
+    df.sort_values(by="Last Session Points", ascending=False, inplace=True)
 
     # Remove duplicate indexes while keeping the first occurrence
     # df = df[~df.index.duplicated(keep="first")]
@@ -200,44 +200,44 @@ if __name__ == "__main__":
     email_list = [f"webinar{number}@mail.com" for number in range(1, PARTICIPANTS + 1)]
     # print(email_list[:5])
 
-    # email_list = [
-    #     "leonardo_1@mail.com",
-    #     "leonardo_2@mail.com",
-    #     "leonardo_3@mail.com",
-    #     "leonardo_4@mail.com",
-    #     "leonardo_5@mail.com",
-    #     "leonardo_6@mail.com",
-    #     "andrea_1@mail.com",
-    #     "andrea_2@mail.com",
-    #     "andrea_3@mail.com",
-    #     "andrea_4@mail.com",
-    #     "andrea_5@mail.com",
-    #     "andrea_6@mail.com",
-    #     "paolo_1@mail.com",
-    #     "paolo_2@mail.com",
-    #     "paolo_3@mail.com",
-    #     "paolo_4@mail.com",
-    #     "paolo_5@mail.com",
-    #     "paolo_6@mail.com",
-    #     "razvan_1@mail.com",
-    #     "razvan_2@mail.com",
-    #     "razvan_3@mail.com",
-    #     "razvan_4@mail.com",
-    #     "razvan_5@mail.com",
-    #     "razvan_6@mail.com",
-    #     "raimondo_1@mail.com",
-    #     "raimondo_2@mail.com",
-    #     "raimondo_3@mail.com",
-    #     "raimondo_4@mail.com",
-    #     "raimondo_5@mail.com",
-    #     "raimondo_6@mail.com",
-    #     "jacopo_1@mail.com",
-    #     "jacopo_2@mail.com",
-    #     "jacopo_3@mail.com",
-    #     "jacopo_4@mail.com",
-    #     "jacopo_5@mail.com",
-    #     "jacopo_6@mail.com",
-    # ]
+    email_list = [
+        "leonardo_emp_1@mail.com",
+        "leonardo_emp_2@mail.com",
+        "leonardo_emp_3@mail.com",
+        "leonardo_emp_4@mail.com",
+        "leonardo_emp_5@mail.com",
+        "leonardo_emp_6@mail.com",
+        "andrea_emp_1@mail.com",
+        "andrea_emp_2@mail.com",
+        "andrea_emp_3@mail.com",
+        "andrea_emp_4@mail.com",
+        "andrea_emp_5@mail.com",
+        "andrea_emp_6@mail.com",
+        "paolo_emp_1@mail.com",
+        "paolo_emp_2@mail.com",
+        "paolo_emp_3@mail.com",
+        "paolo_emp_4@mail.com",
+        "paolo_emp_5@mail.com",
+        "paolo_emp_6@mail.com",
+        "razvan_emp_1@mail.com",
+        "razvan_emp_2@mail.com",
+        "razvan_emp_3@mail.com",
+        "razvan_emp_4@mail.com",
+        "razvan_emp_5@mail.com",
+        "razvan_emp_6@mail.com",
+        "raimondo_emp_1@mail.com",
+        "raimondo_emp_2@mail.com",
+        "raimondo_emp_3@mail.com",
+        "raimondo_emp_4@mail.com",
+        "raimondo_emp_5@mail.com",
+        "raimondo_emp_6@mail.com",
+        "jacopo_emp_1@mail.com",
+        "jacopo_emp_2@mail.com",
+        "jacopo_emp_3@mail.com",
+        "jacopo_emp_4@mail.com",
+        "jacopo_emp_5@mail.com",
+        "jacopo_emp_6@mail.com",
+    ]
 
     start_time = time()
     json_list = get_users_stats(email_list)
